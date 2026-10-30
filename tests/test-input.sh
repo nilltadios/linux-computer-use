@@ -7,7 +7,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"; L="$here/lcu"; PY=/usr/bin/python3
 mon="${1:-$("$L" capture screens | jq -r 'max_by(.x).name')}"; out="${2:-$(mktemp -d)}"; log="$out/probe.jsonl"; : > "$log"
-desk=$("$L" detect | jq -r .desktop); M=class:com.claude.InputProbe
+desk=$("$L" detect | jq -r .desktop); M=class:org.lcu.InputProbe
 read -r gx gy gw gh < <("$L" capture screens | jq -r --arg m "$mon" '.[]|select(.name==$m)|"\(.x) \(.y) \(.width) \(.height)"')
 cx=$(( ${gx%.*} + ${gw%.*}/2 )); cy=$(( ${gy%.*} + ${gh%.*}/2 ))
 $PY "$here/tests/input_probe.py" "$log" 40 --windowed >"$out/probe.out" 2>&1 &
@@ -19,7 +19,7 @@ abort() { echo "ABORT: $*"; kill $probe 2>/dev/null; exit 2; }
 "$L" window fullscreen $M >/dev/null
 "$L" window activate $M >/dev/null
 sleep 0.8
-"$L" window active | jq -e '.[0].class|ascii_downcase|startswith("com.claude.inputprobe")' >/dev/null || abort "probe is not the active window"
+"$L" window active | jq -e '.[0].class|ascii_downcase|startswith("org.lcu.inputprobe")' >/dev/null || abort "probe is not the active window"
 "$L" window info $M | jq -e --arg m "$mon" '.[0]|.fullscreen and .output==$m' >/dev/null || abort "probe is not full screen on $mon"
 mark=$(date +%s.%N)
 "$L" input move $((cx-30)) $((cy-30)) move "$cx" "$cy"; sleep 0.4

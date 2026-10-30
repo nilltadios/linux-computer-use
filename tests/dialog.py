@@ -31,7 +31,7 @@ def activate(app):
 
 
 # NON_UNIQUE: every run is its own process and window (a unique app would just re-activate)
-app = Gtk.Application(application_id="com.claude.TestDialog", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app = Gtk.Application(application_id="org.lcu.TestDialog", flags=Gio.ApplicationFlags.NON_UNIQUE)
 app.connect("activate", activate)
 app.run([])
 sys.exit(rc[0])

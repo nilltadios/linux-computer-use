@@ -183,7 +183,7 @@ def cmd_shot(args):
 # --- low-fps recording without a dialog -------------------------------------------
 def cmd_frames(args):
     region, cleanup, _ = region_for(args)
-    td = Path(tempfile.mkdtemp(prefix="claude-frames-"))
+    td = Path(tempfile.mkdtemp(prefix="lcu-frames-"))
     try:
         end, n, t0 = time.monotonic() + args.seconds, 0, time.monotonic()
         while time.monotonic() < end:
@@ -257,7 +257,7 @@ def cmd_record(args):
     fd = p.pipewire_fd()
 
     whole = tuple(props.get("position", (0, 0))) + tuple(props.get("size", (0, 0))) == tuple(round(v) for v in region)
-    raw = str(Path(tempfile.mkdtemp(prefix="claude-rec-")) / "raw.webm")
+    raw = str(Path(tempfile.mkdtemp(prefix="lcu-rec-")) / "raw.webm")
     pipe = ["gst-launch-1.0", "-e", "pipewiresrc", f"fd={fd}", f"path={node}", "do-timestamp=true", "keepalive-time=1000",
             "!", "videorate", "!", "video/x-raw,framerate=30/1", "!", "videoconvert", "!", "queue",
             "!", "vp8enc", "deadline=1", "cpu-used=8", "target-bitrate=6000000", "!", "webmmux", "!", "filesink", f"location={raw}"]

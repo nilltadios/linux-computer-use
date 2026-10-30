@@ -4,7 +4,7 @@
 # Usage: tests/test-record.sh [OUTDIR]     Expected: every line "ok", exit 0.
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"; L="$here/lcu"; PY=/usr/bin/python3
-out="${1:-$(mktemp -d)}"; fail=0; mkdir -p "$out"; M=class:com.claude.InputProbe
+out="${1:-$(mktemp -d)}"; fail=0; mkdir -p "$out"; M=class:org.lcu.InputProbe
 run() {  # name ext args...
     local name=$1 ext=$2; shift 2; local t0=$SECONDS dur=
     if timeout 40 "$L" capture record "$out/$name.$ext" --seconds 3 "$@" </dev/null >"$out/$name.json" 2>"$out/$name.err" \

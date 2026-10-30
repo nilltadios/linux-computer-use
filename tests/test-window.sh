@@ -6,7 +6,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"; L="$here/lcu"; PY=/usr/bin/python3
 desk=$("$L" detect | jq -r .desktop)
 mon="${1:-$("$L" capture screens | jq -r 'max_by(.x).name')}"
 other=$("$L" capture screens | jq -r --arg m "$mon" '[.[]|select(.name!=$m)][0].name // empty')
-M=class:com.claude.InputProbe; fail=0
+M=class:org.lcu.InputProbe; fail=0
 $PY "$here/tests/input_probe.py" "$(mktemp)" 40 --windowed 2>/dev/null & p=$!
 "$L" window wait-stable $M >/dev/null || { echo "FAIL probe window did not appear"; exit 2; }
 st() {  # label jq-condition

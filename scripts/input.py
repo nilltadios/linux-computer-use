@@ -205,7 +205,7 @@ class Input:
             self.portal = {"kwin": KWinEIS, "mutter": MutterEIS}[kind]()
         fd = self.portal.connect(interactive_timeout)
         self.ctx = ei.ei_new_sender(None)
-        ei.ei_configure_name(self.ctx, b"claude-linux-computer-use")
+        ei.ei_configure_name(self.ctx, b"linux-computer-use")
         if ei.ei_setup_backend_fd(self.ctx, fd) != 0:
             sys.exit("ei_setup_backend_fd failed")
         self.devices, self.seq = [], 1

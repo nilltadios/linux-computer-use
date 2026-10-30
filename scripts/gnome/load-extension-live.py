@@ -83,7 +83,7 @@ def main():
             sys.exit("Looking Glass is off (org.gnome.shell development-tools=false); rerun with --allow-devtools "
                      "or log out and back in to load the extension")
         gsettings("set", "org.gnome.shell", "development-tools", "true")
-    copy = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"claude-gcu-{int(time.time())}" / UUID
+    copy = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / f"lcu-gnome-ext-{int(time.time())}" / UUID
     shutil.copytree(SRC, copy)
     js = ("(async()=>{const em=Main.extensionManager,u='%s',o=em.lookup(u);if(o)await em.unloadExtension(o);"
           "const e=em.createExtensionObject(u,Gio.File.new_for_path('%s'),2);await em.loadExtension(e);"

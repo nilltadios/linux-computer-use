@@ -28,9 +28,9 @@ def rec(kind, ctl=None, x=0, y=0, **kw):
 
 
 def activate(app):
-    win = Gtk.ApplicationWindow(application=app, title="Claude input probe")
+    win = Gtk.ApplicationWindow(application=app, title="lcu input probe")
     win.set_default_size(800, 500)
-    lbl = Gtk.Label(label="Claude input probe - events are logged")
+    lbl = Gtk.Label(label="lcu input probe - events are logged")
     lbl.set_vexpand(True)
     win.set_child(lbl)
 
@@ -66,6 +66,6 @@ def activate(app):
 
 
 # NON_UNIQUE: two probes can run at once (a unique app would just re-activate the first)
-app = Gtk.Application(application_id="com.claude.InputProbe", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app = Gtk.Application(application_id="org.lcu.InputProbe", flags=Gio.ApplicationFlags.NON_UNIQUE)
 app.connect("activate", activate)
 app.run([])

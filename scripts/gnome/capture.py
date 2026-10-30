@@ -167,7 +167,7 @@ def cmd_shot(args):
 # --- low-fps recording ------------------------------------------------------------
 def cmd_frames(args):
     region, cleanup, _ = region_for(args)
-    td = Path(tempfile.mkdtemp(prefix="claude-frames-"))
+    td = Path(tempfile.mkdtemp(prefix="lcu-frames-"))
     try:
         end, n, t0, f = time.monotonic() + args.seconds, 0, time.monotonic(), 1
         while time.monotonic() < end:

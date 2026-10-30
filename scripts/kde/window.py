@@ -2,7 +2,7 @@
 """List and control windows on KDE Plasma 6 Wayland through a temporary KWin script.
 
 KWin scripts cannot print back to us, so this process owns a private D-Bus name
-(org.claude.KWinBridge.p<PID>) and the script reports with callDBus().
+(org.lcu.KWinBridge.p<PID>) and the script reports with callDBus().
 Nothing is saved to KWin's settings; the script is unloaded at exit.
 
 Usage:
@@ -49,8 +49,8 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
 
-BUS = f"org.claude.KWinBridge.p{os.getpid()}"
-IFACE = "org.claude.KWinBridge"
+BUS = f"org.lcu.KWinBridge.p{os.getpid()}"
+IFACE = "org.lcu.KWinBridge"
 NODE = Gio.DBusNodeInfo.new_for_xml(
     f'<node><interface name="{IFACE}"><method name="result"><arg type="s" direction="in"/></method></interface></node>')
 
@@ -126,7 +126,7 @@ try {
         out.windows = hit.map(info);
     }
 } catch (e) { out.ok = false; out.error = String(e); }
-callDBus(BUS, "/", "org.claude.KWinBridge", "result", JSON.stringify(out));
+callDBus(BUS, "/", "org.lcu.KWinBridge", "result", JSON.stringify(out));
 """
 
 
@@ -150,8 +150,8 @@ def run(action, match="", args=(), first=False, all_windows=False, timeout=3.0):
                   GLib.Variant("(su)", (BUS, 4)), GLib.VariantType("(u)"), Gio.DBusCallFlags.NONE, 5000, None)
     js = JS % {k: json.dumps(v) for k, v in dict(bus=BUS, action=action, match=match, args=list(args),
                                                      first=first, all=all_windows).items()}
-    fd, path = tempfile.mkstemp(suffix=".js", prefix="claude-kwin-")
-    name = f"claude-lcu-window-{os.getpid()}"
+    fd, path = tempfile.mkstemp(suffix=".js", prefix="lcu-kwin-")
+    name = f"lcu-window-{os.getpid()}"
     with os.fdopen(fd, "w") as f:
         f.write(js)
     try:
