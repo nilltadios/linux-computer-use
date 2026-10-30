@@ -389,3 +389,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Looking for a 'Comment' button next to a 'Comment and close issue' button, lcu ocr Comment returned only one match, alone false: the first word of the longer, destructive button. The real button was about 100 px to its left and was not returned at all.
 - Do: Before clicking an OCR match for a short label, require alone: true or compute the point from a screenshot, then hover and take capture shot --area ... --pointer to see which button the pointer is on. Treat alone: false on a button-sized label as a warning.
 - Evidence: ocr Comment -> [2012,865] alone false (inside 'Comment and close issue'); screenshot placed the Comment button at 1914,863; pointer crop at 1914,863 showed the hand on 'Comment'
+
+### 2026-10-30 · new · Ctrl+wheel zoom works with keydown ctrl ... keyup ctrl in one input call
+- Status: active
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: In LibreWolf on KDE, with the window activated and the pointer over the page, keydown ctrl + three scroll -1 + keyup ctrl zoomed 100% -> 130% (address-bar badge), and the same with scroll 1 went back to 100%.
+- Do: Activate the target window, put the pointer over it, and send keydown ctrl, scroll steps, keyup ctrl in one lcu input call so the key is released. Check the result (zoom badge or a screenshot).
+- Evidence: lcu input move 768 600 keydown ctrl scroll -1 x3 keyup ctrl -> 130% badge; scroll 1 x3 -> badge gone (100%)

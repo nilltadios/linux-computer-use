@@ -225,6 +225,7 @@ $L input down left move 900 500 up left        # manual press/hold/release
 $L input drag 2100 400 2500 700                # drag-and-drop: press, nudge, glide, hover, release
 $L input drag 2100 400 2500 700 right          # drag with another button
 $L input scroll 3      ; $L input scroll -3    # wheel detents down / up
+$L input keydown ctrl scroll -3 keyup ctrl     # ctrl+wheel: zoom in (scroll 3 = out); activate the window first
 $L input hscroll 2     ; $L input hscroll -2   # right / left
 $L input keydown shift click left keyup shift                      # shift-click
 $L input keydown ctrl move 2200 500 click left move 2300 500 click left keyup ctrl   # ctrl-click several
