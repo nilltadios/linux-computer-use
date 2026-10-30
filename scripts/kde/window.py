@@ -508,6 +508,14 @@ def drag_resize(argv):
     return 0 if not short else 3
 
 
+def _size_kept(before, after):
+    """True if a move kept the window's size. The logical size is whole physical pixels divided
+    by the monitor's scale, so a window that crosses onto a monitor with another scale can
+    change by about a pixel (665.3 -> 666.4 going from 1.5 to 1.25) without being resized."""
+    tolerance = 1 if after.get("output") == before.get("output") else 2
+    return all(abs(after[k] - before[k]) < tolerance for k in ("width", "height"))
+
+
 def drag_move(argv):
     """drag-move MATCH X Y --grab GX GY [--no-raise]
 
@@ -572,7 +580,7 @@ def drag_move(argv):
         return state["windows"][0]
 
     def size_same(w):
-        return all(abs(w[k]-original[k]) < 1 for k in ("width", "height"))
+        return _size_kept(original, w)
 
     if not no_raise:
         raised = run("raise", match)

@@ -107,6 +107,12 @@ class MoveValidation(unittest.TestCase):
                 'fullscreen': False, 'decorated': True, 'client': {'y': 130},
                 'x': 100, 'y': 100, 'width': 400, 'height': 300, 'moving': False, 'resizing': False}
 
+    def test_size_tolerance_across_monitor_scales(self):
+        a = {'width': 665.33, 'height': 705.33, 'output': 'DP-1'}
+        self.assertTrue(window._size_kept(a, dict(a, width=666.4, height=706.4, output='eDP-1')))
+        self.assertFalse(window._size_kept(a, dict(a, width=666.4, height=706.4)))
+        self.assertFalse(window._size_kept(a, dict(a, width=670, output='eDP-1')))
+
     def test_bad_move_arguments_never_contact_desktop(self):
         for args in [[], ['id:a','100','100'], ['id:a','100','100','--grab','10'],
                      ['id:a','nan','100','--grab','10','10'],
