@@ -29,7 +29,7 @@ among them), `~/.claude/skills/` (Claude Code), `~/.codex/skills/` (Codex),
 symlink it into the others' folders, so they share one lessons log.
 
 ```bash
-git clone https://github.com/<owner>/linux-computer-use ~/.agents/skills/linux-computer-use
+git clone https://github.com/nilltadios/linux-computer-use ~/.agents/skills/linux-computer-use
 ~/.agents/skills/linux-computer-use/lcu detect
 ~/.agents/skills/linux-computer-use/lcu check
 ```
@@ -86,6 +86,16 @@ tests/                 end-to-end tests (probe window, dialogs, recording, learn
 `test-learn.sh` run against throwaway windows the tests open themselves; the input
 test sends nothing until its probe window is active, full screen and has seen the
 pointer. SKILL.md lists expected output and when each last passed on which desktop.
+
+On KDE, `tests/test-drag-resize.sh` checks all eight resize handles, and
+`tests/test-drag-move.py` checks title-bar dragging with a visually verified grab
+point. These tests restore window geometry afterward. Pass an existing window
+only when it is authorized for testing; see each script's usage and
+[the window commands](SKILL.md#windows-and-apps-lcu-window).
+
+`/usr/bin/python3 -s tests/test-resize-validation.py` runs the headless regression
+tests for resize arguments, move safety checks and failed-grab cleanup. It needs
+the distribution's PyGObject but does not send input or open windows.
 
 ## License
 
