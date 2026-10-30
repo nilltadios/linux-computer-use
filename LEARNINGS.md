@@ -341,3 +341,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: A verified header point can move libcosmic, GTK4/libadwaita and Qt windows through real pointer input. A tiny requested movement still needs enough initial motion to start the drag. Targets 8 px from an output edge can snap to the edge even when the window size stays unchanged.
 - Do: Choose a non-interactive header point from a fresh screenshot and pass its frame-relative coordinates to window drag-move. The command hit-tests before pressing, checks pointer/window stability, confirms moving with unchanged size, and corrects actual motion. It requires a 16 px destination margin, starts inward when necessary, releases the button and restores the pointer on exit. Treat exit 3 as a constrained target and inspect actual geometry.
 - Evidence: Authenticator (libcosmic), Gear Lever (GTK4/libadwaita), KWrite (Qt): all eight directions plus a 2-by-3-pixel move and a no-op passed per app (30 checks). Final tiny/near-edge/no-op checks passed on each app (9 checks), with unchanged sizes and restored pointer positions. A target 8 px from the edge snapped flush with the edge and returned exit 3; the 16 px margin retest reached its target. Original window geometries were restored. Regression tests cover obstruction, pointer interference, invalid/ambiguous targets and failed-grab cleanup.
+
+### 2026-10-30 · new · After stopping a KDE recording, wait for the final JSON line before using the file
+- Status: active
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: kill -INT on capture record returns at once, but the script then finalises gst output and re-encodes with ffmpeg (padding to wall-clock length). For an 80 s 2560x1440 take this took about a minute; reading the file earlier gave 'File ended prematurely' and a partial size.
+- Do: Run record with stdout redirected to a log; after kill -INT, wait until the log has a second JSON line with "file" (or the pid is gone) before ffprobe or frame extraction.
+- Evidence: capture record --seconds 900 --screen DP-1 in background, kill -INT after ~80 s -> immediate ffprobe: truncated file; ~60 s later log printed {"file": ...} and ffprobe gave duration 82.8 s, frames readable
