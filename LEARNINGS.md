@@ -324,3 +324,12 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Assigning frameGeometry through a KWin script can force a client-decorated window below its advertised minimum. Pointer resizing respects that minimum.
 - Do: Use window drag-resize when testing sizes a person can reach. Reserve window geometry for explicit placement or forced-layout tests, and label those tests accordingly.
 - Evidence: Isolated libcosmic app: min_size 380x400, direct geometry 190x200 -> actual 190x200. After restoring a normal size, drag-resize to 190x200 -> actual 380x400, exit 3 with target not reached. Normal targets 1160x700, 1000x600 and 1080x640 were reached exactly.
+
+### 2026-10-30 · new · Exact resize targets can depend on window position
+- Status: active
+- App: it.mijorus.gearlever
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: All eight handles worked on libcosmic, GTK4/libadwaita and Qt windows. Three GTK4 bottom-facing growth targets stopped 3.75 logical pixels beyond the requested height at one position; moving the window 40 pixels upward made the same three growth/shrink pairs reach their targets exactly. This is consistent with desktop snapping; the test did not isolate its cause.
+- Do: Treat exit 3 as a real target mismatch, not a failure to start a drag. Inspect attempts, actual size and fixed edges. For a suspected position-dependent constraint, save the original geometry and retest at a nearby clear position before changing the input code. Restore the original geometry afterward.
+- Evidence: Physical pointer test of all eight handles, growing 50 px and shrinking back: libcosmic 16/16 exact targets, Qt 16/16, GTK4/libadwaita 13/16 at the initial position. The three GTK4 bottom-facing handles passed all 6 operations after a -40 px vertical translation. All unselected edges stayed within 1 logical pixel throughout, and all original geometries were restored. Initial target mismatches remain in the test record.
