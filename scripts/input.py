@@ -27,6 +27,7 @@ Usage (actions run in order in one connection):
   lcu input down left move 900 500 up left
   lcu input drag 100 100 600 400        # press at A, nudge, glide to B, hover, release
   lcu input drag 100 100 600 400 right  # with another button
+  lcu input drag 100 100 600 400 step 8 # at most 8 px per move, 25 ms apart (libcosmic edge resize)
   lcu input scroll 3                    # 3 wheel detents down (negative = up)
   lcu input hscroll -2                  # 2 detents left
   lcu input key ctrl+shift+t
@@ -40,6 +41,7 @@ Usage (actions run in order in one connection):
   lcu input --setup | --forget          # COSMIC/portal: save / delete the input grant
 """
 import ctypes
+import math
 import os
 import select
 import subprocess
@@ -279,23 +281,31 @@ class Input:
             self.button(name, False)
             time.sleep(0.04)
 
-    def drag(self, x1, y1, x2, y2, steps=None, button="left"):
+    def drag(self, x1, y1, x2, y2, step=None, button="left"):
         # Drag-and-drop between apps starts only when the first motion after the press is
         # small and still on the item (a ~190 px first jump cancelled it on COSMIC), and
         # drops register more reliably after a short hover over the target (GNOME).
+        # step = largest move in px, with a 25 ms pause per move: libcosmic windows ignore
+        # an edge resize made of bigger steps (KWin and GTK4 borders take any step size).
+        if step is not None and (not math.isfinite(step) or step <= 0):
+            raise ValueError("drag step must be a finite positive number")
         dist = max(abs(x2 - x1), abs(y2 - y1), 1)
-        steps = steps or max(20, round(dist / 40))
+        steps = math.ceil(dist / step) if step else max(20, round(dist / 40))
         self.move(x1, y1)
         self.button(button, True)
         time.sleep(0.08)
-        for px in (3, 8):  # nudge toward the target, past the DnD threshold, still on the item
-            f = min(px / dist, 0.5)
-            self.move(x1 + (x2 - x1) * f, y1 + (y2 - y1) * f)
-            time.sleep(0.03)
-        for i in range(1, steps + 1):
+        if step is None:
+            for px in (3, 8):  # nudge toward the target, past the DnD threshold, still on the item
+                f = min(px / dist, 0.5)
+                self.move(x1 + (x2 - x1) * f, y1 + (y2 - y1) * f)
+                time.sleep(0.03)
+        for i in range(1, int(steps) + 1):
             self.move(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
+            if step:
+                time.sleep(0.025)
         time.sleep(0.15)
-        self.move(x2 + 2, y2 + 2)  # a last small motion over the target, then hover
+        nudge = min(2, step) if step is not None else 2
+        self.move(x2 + nudge, y2 + nudge)  # a last small motion over the target, then hover
         self.move(x2, y2)
         time.sleep(0.2)
         self.button(button, False)
@@ -433,7 +443,9 @@ def main(argv):
                 inp.button(opt_button(), a == "down")
             elif a == "drag":
                 x1, y1, x2, y2 = num(), num(), num(), num()
-                inp.drag(x1, y1, x2, y2, button=opt_button())
+                b = opt_button()
+                st = (args.pop(0), num())[1] if args and args[0] == "step" else None
+                inp.drag(x1, y1, x2, y2, step=st, button=b)
             elif a == "scroll":
                 inp.scroll(num(int))
             elif a == "hscroll":

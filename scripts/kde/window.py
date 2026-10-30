@@ -9,6 +9,8 @@ Usage:
   lcu window list [--all]                    # JSON, one object per window, topmost first
   lcu window active                          # the focused window
   lcu window pointer                         # pointer position and output, and KWin's active output
+  lcu window at X Y                          # KWin's hit test, including resize borders
+  lcu window drag-resize MATCH W H [--edge EDGE] [--step PX] [--no-raise]
   lcu window ACTION MATCH [ARGS]
   lcu window launch [--on OUTPUT] [--maximize|--fullscreen] [--match MATCH] -- CMD [ARGS]
 MATCH: id:{uuid} | class:PREFIX (Wayland app_id / desktop file name / X11 WM_CLASS,
@@ -33,10 +35,12 @@ launch starts CMD detached, waits (20 s) for its new window and prints it. New
 windows open on KWin's active output, which is not always the one you want, so --on
 moves the window to OUTPUT if it opened elsewhere; --maximize/--fullscreen apply after
 it appears. --match picks the window when the app opens more than one (default: the
-first new window). A single-instance app that is already running opens its window
-in the old process; launch compares window ids, so that is handled.
+first new window). Only a window id that did not exist before counts: when a running
+single-instance app answers in a window that already existed (it gains focus or a new
+title, e.g. a new tab), launch exits 1 after ~3 s saying so and changes nothing.
 """
 import json
+import math
 import os
 import subprocess
 import sys
@@ -61,15 +65,23 @@ function maximized(w) {
     const a = workspace.clientArea(KWin.MaximizeArea, w), g = w.frameGeometry;
     return g.x === a.x && g.y === a.y && g.width === a.width && g.height === a.height;
 }
+function rect(r) { return {x: r.x, y: r.y, width: r.width, height: r.height}; }
 function info(w) {
-    const g = w.frameGeometry, c = w.clientGeometry;
+    const g = w.frameGeometry;
     return {id: w.internalId.toString(), class: String(w.resourceClass), name: String(w.resourceName),
             desktop_file: String(w.desktopFileName || ""), title: String(w.caption), pid: w.pid,
             x: g.x, y: g.y, width: g.width, height: g.height,
-            client: {x: c.x, y: c.y, width: c.width, height: c.height},
+            client: rect(w.clientGeometry), buffer: rect(w.bufferGeometry),
             output: w.output ? w.output.name : null, active: w === workspace.activeWindow,
             minimized: w.minimized, maximized: maximized(w), fullscreen: w.fullScreen, keepAbove: w.keepAbove,
-            normal: w.normalWindow, workspace: w.desktops.map(d => d.name)};
+            normal: w.normalWindow, workspace: w.desktops.map(d => d.name),
+            decorated: w.frameGeometry.width !== w.clientGeometry.width || w.frameGeometry.height !== w.clientGeometry.height, resizing: !!w.resize, moving: !!w.move,
+            min_size: {width: w.minSize.width, height: w.minSize.height},
+            screen: w.output ? rect(w.output.geometry) : null,
+            area: rect(workspace.clientArea(KWin.MaximizeArea, w))};
+}
+function shown(w) {  // drawn on the current workspace (desktops == [] means all workspaces)
+    return !w.minimized && !w.deleted && (w.desktops.length === 0 || w.desktops.includes(workspace.currentDesktop));
 }
 function matches(w) {
     const [k, ...rest] = MATCH.split(":"); const v = rest.join(":").toLowerCase();
@@ -92,6 +104,11 @@ try {
             const g = s.geometry; return p.x >= g.x && p.x < g.x + g.width && p.y >= g.y && p.y < g.y + g.height; });
         out.pointer = {x: p.x, y: p.y, output: o ? o.name : null,
                        active_output: workspace.activeScreen ? workspace.activeScreen.name : null};
+    } else if (ACTION === "at") {
+        // KWin includes decoration resize zones outside frameGeometry. Frame rectangles
+        // alone would identify the window behind a thin resize border instead.
+        const x = +ARGS[0], y = +ARGS[1];
+        out.windows = Array.from(workspace.windowAt({x, y})).filter(shown).map(info);
     } else {
         let hit = wins.filter(matches);
         if (FIRST) hit = hit.slice(0, 1);
@@ -193,17 +210,35 @@ def launch(argv):
         sys.exit("launch needs -- CMD [ARGS]")
     on = opts[opts.index("--on") + 1] if "--on" in opts else None
     match = opts[opts.index("--match") + 1] if "--match" in opts else None
-    before = {w["id"] for w in run("list", all_windows=True)["windows"]}
+    seen = {w["id"]: w for w in run("list", all_windows=True)["windows"]}
+    before = set(seen)
+    was_active = next((w["id"] for w in seen.values() if w["active"]), None)
     subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      start_new_session=True)
-    win, end = None, time.monotonic() + 20
+    win, reused, end = None, None, time.monotonic() + 20
     while not win and time.monotonic() < end:
         time.sleep(0.2)
-        fresh = [w for w in run("list")["windows"] if w["id"] not in before]
+        now = run("list")["windows"]
+        fresh = [w for w in now if w["id"] not in before]
         if match:
             ids = {w["id"] for w in run("info", match)["windows"]}
             fresh = [w for w in fresh if w["id"] in ids]
         win = fresh[0] if fresh else None
+        # A running single-instance app (Kate, Dolphin in some setups, unique GTK apps) may
+        # answer in a window that already existed: it gets focus or a new title. Report that
+        # after 3 s instead of treating that window as the launched one.
+        # Without --match only a focus move counts: other windows retitle themselves all the time.
+        for w in now:
+            old_w = seen.get(w["id"])
+            focused = w["active"] and w["id"] != was_active
+            if old_w and not fresh and (focused or (match and w["title"] != old_w["title"])):
+                if not match or w["id"] in ids:
+                    reused = reused or (w, time.monotonic())
+        if not win and reused and time.monotonic() - reused[1] > 3:
+            w = reused[0]
+            sys.exit(f"{' '.join(cmd)} opened no new window; the running app answered in its existing window "
+                     f"id:{w['id']} ({w['title']!r}). Nothing was moved or resized. That window may be the "
+                     "user's: restore what changed in it (window info) and ask before using it.")
     if not win:
         sys.exit(f"no new window appeared within 20 s for {' '.join(cmd)}")
     m = f"id:{win['id']}"
@@ -220,12 +255,252 @@ def launch(argv):
     return 0
 
 
+EDGES = ("left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right")
+
+
+def _fail(msg, **state):
+    print(json.dumps({"ok": False, "error": msg, **state}, indent=1))
+    sys.exit(1)
+
+
+def _grab_offsets(w, side):
+    """Distances in px from the frame edge `side` to try a press at, best first; negative = outside.
+    KWin's own decoration is resizable in its border, or just outside it when the border is
+    thinner than ~3 px (Breeze extends the resize zone outward). A client-decorated window
+    resizes in a 2-5 px band inside its edge (libcosmic, Qt CSD), or in its shadow margin
+    just outside (GTK), which `buffer` covers."""
+    g, c, b = w, w["client"], w["buffer"]
+    if side in ("left", "right"):
+        lo, hi = (g["x"], c["x"], b["x"]), (g["x"] + g["width"], c["x"] + c["width"], b["x"] + b["width"])
+    else:
+        lo, hi = (g["y"], c["y"], b["y"]), (g["y"] + g["height"], c["y"] + c["height"], b["y"] + b["height"])
+    border, shadow = (lo[1] - lo[0], lo[0] - lo[2]) if side in ("left", "top") else (hi[0] - hi[1], hi[2] - hi[0])
+    if w["decorated"]:
+        if side == "top":
+            return [-1, -2, -3, 0.5, 2]  # above the title bar, then its top rim
+        return [round(border / 2, 1)] if border >= 3 else [-1, -2, -3, 0.5, 2]
+    return ([-min(4, shadow / 2)] if shadow >= 4 else []) + [4, 3, 2]
+
+
+def drag_resize(argv):
+    """window drag-resize MATCH W H [--edge E] [--step PX] [--no-raise]: resize like a user, by
+    dragging the window's edge or corner with the pointer, and verify every step."""
+    pos, opts, step, edge = [], set(), 8.0, None
+    it = iter(argv)
+    for a in it:
+        if a in ("--step", "--edge"):
+            value = next(it, None)
+            if value is None:
+                _fail(f"{a} needs a value")
+            if a == "--step":
+                try:
+                    step = float(value)
+                except ValueError:
+                    _fail("--step needs a number")
+            else:
+                edge = value
+        elif a.startswith("--"):
+            if a not in ("--no-raise", "--left", "--top"):
+                _fail(f"unknown option {a}")
+            opts.add(a)
+        else:
+            pos.append(a)
+    if len(pos) != 3:
+        sys.exit("drag-resize needs MATCH W H")
+    if edge and edge not in EDGES:
+        _fail(f"--edge must be one of {', '.join(EDGES)}")
+    try:
+        match, tw, th = pos[0], float(pos[1]), float(pos[2])
+    except ValueError:
+        _fail("W and H must be numbers")
+    if not all(math.isfinite(v) and v > 0 for v in (tw, th, step)):
+        _fail("W, H and --step must be finite positive numbers")
+    if step > 8:
+        _fail("--step must be at most 8 px")
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from input import Input
+
+    def win():
+        r = run("info", m)
+        if not r["ok"]:
+            _fail(f"{m} is gone", target={"width": tw, "height": th})
+        return r["windows"][0]
+
+    r = run("info", match)
+    if not r["ok"]:
+        _fail(r["error"])
+    if len(r["windows"]) != 1:
+        _fail("drag-resize needs exactly one window; use its id")
+    w0 = r["windows"][0]
+    m = f"id:{w0['id']}"
+    if w0["maximized"] or w0["fullscreen"] or w0["minimized"]:
+        _fail("drag-resize needs a normal window: unmaximize/unfullscreen/unminimize it first", window=w0)
+    a = w0["area"]
+    ax2, ay2 = a["x"] + a["width"], a["y"] + a["height"]
+    dw, dh = abs(tw - w0["width"]) >= 1, abs(th - w0["height"]) >= 1
+    if edge:  # the user picked the handle: the other edges stay put
+        hside = next((s for s in ("left", "right") if s in edge), None)
+        vside = next((s for s in ("top", "bottom") if s in edge), None)
+        if (dw and not hside) or (dh and not vside):
+            _fail(f"the {edge} edge cannot change the {'width' if dw and not hside else 'height'}; "
+                  "pick a corner or leave --edge out", window=w0)
+        hside, vside = (hside if dw else None), (vside if dh else None)
+    else:  # right/bottom unless --left/--top, that edge is off the usable area, or only the other way fits
+        hside = None if not dw else "left" if ("--left" in opts or w0["x"] + tw > ax2
+                                               or w0["x"] + w0["width"] > ax2 - 2) else "right"
+        vside = None if not dh else "top" if ("--top" in opts or w0["y"] + th > ay2
+                                              or w0["y"] + w0["height"] > ay2 - 2) else "bottom"
+    edge_pos = {"left": w0["x"], "right": w0["x"] + w0["width"], "top": w0["y"], "bottom": w0["y"] + w0["height"]}
+    for side in filter(None, (hside, vside)):
+        lo, hi = (a["x"], ax2) if side in ("left", "right") else (a["y"], ay2)
+        if not lo + 2 <= edge_pos[side] <= hi - 2:
+            _fail(f"the {side} edge is off the usable area of {w0['output']}; move the window first "
+                  "(window move-to / geometry) or use another --edge", window=w0)
+    if hside == "right" and w0["x"] + tw > ax2 or hside == "left" and w0["x"] + w0["width"] - tw < a["x"]:
+        _fail(f"width {tw:g} does not fit in the usable area of {w0['output']} with the {hside} edge moving", window=w0)
+    if vside == "bottom" and w0["y"] + th > ay2 or vside == "top" and w0["y"] + w0["height"] - th < a["y"]:
+        _fail(f"height {th:g} does not fit in the usable area of {w0['output']} with the {vside} edge moving", window=w0)
+    if not hside and not vside:
+        print(json.dumps({"ok": True, "changed": False, "window": w0}, indent=1))
+        return 0
+    if w0["output"] is None:
+        _fail("the window is on no output", window=w0)
+
+    if "--no-raise" not in opts:  # pressing its edge raises it anyway (KWin click-to-raise)
+        run("raise", m)
+        time.sleep(0.15)
+    inp = Input()
+    home = run("pointer")["pointer"]
+    log = []
+
+    def edge_point(w, side, off):
+        """(x, y) at `off` px from edge `side` (inside if > 0), at its middle."""
+        cx, cy = w["x"] + w["width"] / 2, w["y"] + w["height"] / 2
+        return {"left": (w["x"] + off, cy), "right": (w["x"] + w["width"] - off, cy),
+                "top": (cx, w["y"] + off), "bottom": (cx, w["y"] + w["height"] - off)}[side]
+
+    def safe_to_press(w, x, y):
+        """None if a press at x,y can only reach the target; else why not."""
+        hits = run("at", args=[x, y])["windows"]
+        top = hits[0] if hits else None
+        if top and top["id"] == w["id"]:
+            return None
+        inside = w["x"] <= x < w["x"] + w["width"] and w["y"] <= y < w["y"] + w["height"]
+        if inside:
+            return f"{x:g},{y:g} is covered or no visible target frame was found"
+        if not top or (not top["normal"] and top["class"] == "plasmashell"):
+            return None  # outside, over the desktop: a missed press only reaches the wallpaper
+        return f"{x:g},{y:g} is outside the target over {top['class']} {top['title']!r}; refusing a speculative press"
+
+    def glide(x1, y1, x2, y2):
+        n = max(1, int(-(-max(abs(x2 - x1), abs(y2 - y1)) // step)))
+        for i in range(1, n + 1):
+            inp.move(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n)
+            time.sleep(0.025)
+
+    def one_drag(sides, dx, dy):
+        """Press on the edge/corner made of `sides`, drag by dx,dy. -> (moved?, note)."""
+        w = win()
+        offs = [_grab_offsets(w, s) for s in sides]
+        tries = list(zip(*[o + [o[-1]] * (max(map(len, offs)) - len(o)) for o in offs]))
+        for off in tries:
+            if len(sides) == 1:
+                gx, gy = edge_point(w, sides[0], off[0])
+            else:  # corner: x from the horizontal side, y from the vertical one
+                gx, gy = edge_point(w, sides[0], off[0])[0], edge_point(w, sides[1], off[1])[1]
+            why = safe_to_press(w, gx, gy)
+            if why:
+                log.append({"press": [gx, gy], "skipped": why})
+                continue
+            # approach from 12 px inside: CSD toolkits pick the resize edge from motion over them
+            ix = gx + (12 if "left" in sides else -12 if "right" in sides else 0)
+            iy = gy + (12 if "top" in sides else -12 if "bottom" in sides else 0)
+            inner = run("at", args=[ix, iy])["windows"]
+            if inner and inner[0]["id"] == w["id"]:
+                inp.move(ix, iy)
+                time.sleep(0.1)
+                glide(ix, iy, gx, gy)
+            else:
+                inp.move(gx, gy)
+            time.sleep(0.2)
+            inp.button("left", True)
+            time.sleep(0.3)
+            sx, sy = (1 if dx > 0 else -1 if dx < 0 else 0), (1 if dy > 0 else -1 if dy < 0 else 0)
+            initial_steps = math.ceil(16 / min(2, step))
+            for k in range(1, initial_steps + 1):  # cross KWin's drag threshold before checking resize state
+                inp.move(gx + 16 * k / initial_steps * sx, gy + 16 * k / initial_steps * sy)
+                time.sleep(0.04)
+            if not win()["resizing"]:
+                inp.move(gx, gy)  # back to the press point: the miss is a click, not a drag
+                time.sleep(0.05)
+                inp.button("left", False)
+                log.append({"press": [gx, gy], "resize_started": False})
+                time.sleep(0.2)
+                continue
+            glide(gx + 16 * sx, gy + 16 * sy, gx + dx, gy + dy)
+            time.sleep(0.3)
+            inp.button("left", False)
+            log.append({"press": [gx, gy], "resize_started": True, "to": [gx + dx, gy + dy]})
+            return True
+        return False
+
+    try:
+        passes, stopped = 0, set()
+        while passes < 3:
+            w = wait_stable(m) or [win()]
+            w = w[0]
+            ddx = (tw - w["width"]) if hside and "w" not in stopped else 0
+            ddy = (th - w["height"]) if vside and "h" not in stopped else 0
+            ddx, ddy = (ddx if abs(ddx) >= 1 else 0), (ddy if abs(ddy) >= 1 else 0)
+            if not ddx and not ddy:
+                break
+            passes += 1
+            sx = -ddx if hside == "left" else ddx
+            sy = -ddy if vside == "top" else ddy
+            s = w["screen"]
+            at_screen_edge = any(e < 2 for e in (w["x"] - s["x"], s["x"] + s["width"] - w["x"] - w["width"],
+                                                      w["y"] - s["y"], s["y"] + s["height"] - w["y"] - w["height"]))
+            if ddx and ddy and not at_screen_edge:
+                jobs = [((hside, vside), sx, sy)]
+            else:  # one side at a time: a corner on the screen edge reads as that side alone
+                jobs = ([((hside,), sx, 0)] if ddx else []) + ([((vside,), 0, sy)] if ddy else [])
+            for sides, dx, dy in jobs:
+                before = win()
+                if not one_drag(sides, dx, dy):
+                    _fail(f"no press on the {'-'.join(sides)} edge started a resize; inspect the returned window state",
+                          window=before, attempts=log)
+                after = (wait_stable(m) or [win()])[0]
+                if dx and abs(after["width"] - before["width"]) < 1:
+                    stopped.add("w")
+                if dy and abs(after["height"] - before["height"]) < 1:
+                    stopped.add("h")
+    finally:
+        try:
+            inp.button("left", False)
+            inp.move(home["x"], home["y"])
+        finally:
+            inp.close()
+    w = (wait_stable(m) or [win()])[0]
+    short = {k: v for k, v in (("width", tw - w["width"]), ("height", th - w["height"])) if abs(v) >= 1}
+    note = None
+    if short:
+        note = (f"stopped {', '.join(f'{v:+g} px short in {k}' for k, v in short.items())}: target not reached; "
+                f"possible app size limits (min {w['min_size']['width']}x{w['min_size']['height']} client px), "
+                "size increments or desktop snapping")
+    print(json.dumps({"ok": not short, "changed": (w["width"], w["height"]) != (w0["width"], w0["height"]),
+                      "from": [w0["width"], w0["height"]], "to": [w["width"], w["height"]], "target": [tw, th],
+                      "note": note, "attempts": log, "window": w}, indent=1))
+    return 0 if not short else 3
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0
     if argv[0] == "launch":  # before flag stripping: CMD may contain --first/--all
         return launch(argv[1:])
+    if argv[0] == "drag-resize":
+        return drag_resize(argv[1:])
     first = "--first" in argv
     all_w = "--all" in argv
     argv = [a for a in argv if a not in ("--first", "--all")]
@@ -245,6 +520,16 @@ def main(argv):
         return 0
     if action in ("list", "active"):
         res = run(action, all_windows=all_w)
+    elif action == "at":
+        if len(argv) != 3:
+            sys.exit("at needs X Y")
+        try:
+            point = [float(v) for v in argv[1:]]
+        except ValueError:
+            _fail("at needs finite numeric X Y")
+        if not all(math.isfinite(v) for v in point):
+            _fail("at needs finite numeric X Y")
+        res = run("at", args=point)
     else:
         if len(argv) < 2:
             sys.exit("need a MATCH, see --help")

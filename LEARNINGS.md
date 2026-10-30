@@ -281,10 +281,46 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: input drag 2298 698 2700 900 -> still 700x500; manual sequence from 2296,696 -> 1103.75x698.75. Cursor probes at 2-6 px above the bottom edge: resize arrow at 2-5, normal at 6. 12-step drags of 46 px/step -> unchanged; 8 px steps with an inside approach -> 8 of 8 target sizes reached (widths stop at 940, the app minimum).
 
 ### 2026-10-30 · app · 'dolphin --new-window' can open a tab in the existing window, and 'window launch' then returns that window
-- Status: active
+- Status: wrong (corrected 2026-10-30; the earlier window had already been closed)
 - App: org.kde.dolphin
 - Desktop: all
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
 - What: With Dolphin already running, 'lcu window launch --on DP-1 --match class:org.kde.dolphin -- dolphin --new-window DIR' added DIR as a tab to the user's existing Dolphin window and printed that window as the launched one, so later geometry calls resized the user's window.
 - Do: Before launching Dolphin for a test, record the existing Dolphin window ids and their geometry/state. After launch, compare ids; if no new id appeared, do not move or resize anything, restore the window's state (maximize/minimize) and ask the user. Prefer a file manager that is not already open, or ask the user before using theirs.
 - Evidence: window list afterwards: one org.kde.dolphin window with tabs 'screen' and 'drop test', same id that launch printed; restored with window maximize + minimize -> 1600x854 maximized, minimized
+
+
+### 2026-10-30 · app · A new Dolphin window can restore the previous session's tabs
+- Status: active
+- App: org.kde.dolphin
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: The earlier Dolphin reuse report was incorrect. The previous window had been closed before the test launch; a new window restored the session's tabs and looked like the old window.
+- Do: Compare window ids before and after launch. Restored tabs do not prove reuse. Do not change a pre-existing window without authorization. A new test window can still contain restored private tabs; prefer a disposable probe.
+- Evidence: Corrected session chronology: previous window closed at 10:27, test launch at about 10:42. The earlier reuse claim was explicitly withdrawn in the handoff. The old entry is retained with Status wrong.
+
+### 2026-10-30 · better · KWin resize safety needs its own hit test and enough initial motion
+- Status: promoted (window at and drag-resize)
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: A thin server-side resize border extends outside frameGeometry. Rectangle checks identify a window behind it. Six pixels of initial motion did not start a resize on the GTK4 probe, while sixteen pixels did. A drag can also stop short of the requested dimensions, so the returned geometry matters.
+- Do: Use window at, which calls workspace.windowAt, to verify the actual target including resize borders. Use window drag-resize for small stepped motion, crossing the drag threshold before checking the resize flag. Exit 3 means the target was not reached; inspect the actual dimensions rather than assuming a minimum-size failure.
+- Evidence: GTK4 probe on KWin: 6 px initial motion -> resizing false; 16 px -> resizing true and width increased 16.25 px. workspace.windowAt returned the probe 1-4 px beyond its right frame, while frame containment returned the window behind it. tests/test-drag-resize.sh verifies all eight handles and reports constrained targets separately.
+
+### 2026-10-30 · new · A Dolphin drop can reach a libcosmic Flatpak through text/uri-list
+- Status: active
+- App: org.kde.dolphin, libcosmic
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: A real Dolphin-to-libcosmic Flatpak drop opened the receiving app's review. Preferring the portal transfer key failed; preferring text/uri-list opened the file review. The filename contained a space. Files outside the sandbox's readable roots were not covered.
+- Do: For compositor drag tests, use input drag after verifying the source and target windows. Confirm the receiving app's review without applying an install. A successful semantic drop command alone does not test a compositor drag.
+- Evidence: The app repository's WC-002 follow-up records the real input drag onto the dev Flatpak, the opened review and cancellation.
+
+### 2026-10-30 · new · Direct geometry does not test the minimum size reachable by pointer
+- Status: promoted (SKILL.md window commands)
+- App: libcosmic
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: Assigning frameGeometry through a KWin script can force a client-decorated window below its advertised minimum. Pointer resizing respects that minimum.
+- Do: Use window drag-resize when testing sizes a person can reach. Reserve window geometry for explicit placement or forced-layout tests, and label those tests accordingly.
+- Evidence: Isolated libcosmic app: min_size 380x400, direct geometry 190x200 -> actual 190x200. After restoring a normal size, drag-resize to 190x200 -> actual 380x400, exit 3 with target not reached. Normal targets 1160x700, 1000x600 and 1080x640 were reached exactly.

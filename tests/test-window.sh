@@ -31,9 +31,23 @@ if [[ $desk == cosmic ]]; then
 fi
 "$L" window minimize $M >/dev/null; st minimize '.minimized'
 "$L" window activate $M >/dev/null; st activate '.minimized==false and .active'
+if [[ $desk == kde ]]; then
+    read -r px py wid < <("$L" window info $M | jq -r '.[0]|"\(.x+.width/2) \(.y+.height/2) \(.id)"')
+    if "$L" window at "$px" "$py" | jq -e --arg id "$wid" '.[0].id==$id' >/dev/null; then
+        echo "ok   at returns the probe under its centre"
+    else echo "FAIL at: probe was not the hit target"; fail=1; fi
+fi
 "$L" window close $M >/dev/null; sleep 0.8
 if kill -0 $p 2>/dev/null; then echo "FAIL close: probe still running"; kill $p; fail=1; else echo "ok   close: probe exited"; fi
 j=$("$L" window launch --on "$mon" --maximize -- $PY "$here/tests/input_probe.py" "$(mktemp)" 20 --windowed 2>/dev/null | jq -c '.[0]|{output,maximized,class}')
 if jq -e --arg m "$mon" '.output==$m and .maximized' <<<"$j" >/dev/null; then echo "ok   launch --on $mon --maximize: $j"; else echo "FAIL launch: $j"; fail=1; fi
 "$L" window close $M >/dev/null 2>&1
+if [[ $desk == kde ]]; then  # a running single-instance app answering in its old window is reported, not returned
+    R=class:org.lcu.ReuseProbe
+    "$L" window launch --on "$mon" --match "$R" -- $PY "$here/tests/reuse_app.py" 30 >/dev/null 2>&1
+    msg=$("$L" window launch --on "$mon" --match "$R" -- $PY "$here/tests/reuse_app.py" 30 2>&1); rc=$?
+    if [[ $rc -ne 0 && $msg == *"opened no new window"* ]]; then echo "ok   launch reports reuse of an existing window"
+    else echo "FAIL launch reuse: exit $rc: $msg"; fail=1; fi
+    "$L" window close $R >/dev/null 2>&1
+fi
 exit $fail

@@ -279,6 +279,22 @@ every match; add `--first` for one. `--all` (KDE, GNOME) adds panels, popups and
 other non-normal windows. Changes are applied asynchronously: wait ~0.3 s before a
 screenshot.
 
+KDE also provides `window at X Y`, KWin's input hit test including decoration
+resize borders, and `window drag-resize MATCH W H [--edge EDGE] [--step PX]`.
+`EDGE` is left, right, top, bottom, or a corner such as bottom-right. The default
+chooses edges that fit the usable area; `--left` / `--top` choose the other sides.
+The command requires exactly one window and refuses minimized, maximized or
+fullscreen windows. It raises the target unless `--no-raise` is supplied, checks
+KWin's actual hit target before a press, approaches from inside, and uses steps
+of at most 8 px. It releases the button and restores the pointer at the end.
+Exit 0 means the target size was reached (within 1 logical pixel); exit 3 means
+a size limit, size increments or desktop snapping prevented it. Inspect `to`,
+`target`, `note` and `window` in the JSON. Other failures exit 1.
+`window info` includes `area` (usable screen rectangle), `screen`, `buffer`,
+`min_size` (client size), `decorated`, `resizing` and `moving` on KDE.
+`window geometry` assigns frame dimensions directly and can bypass an app's
+minimum size; use pointer resizing to test the size a person can reach.
+
 What each desktop can do beyond that:
 
 | | KDE | GNOME | COSMIC |
@@ -301,8 +317,10 @@ gtk-launch org.kde.dolphin              # by .desktop id (ls /usr/share/applicat
 xdg-open /path/or/url                   # default handler
 ```
 
-- `launch` compares window ids, so a single-instance app that opens its window in
-  an already running process is handled; "new process" does not mean "new pid".
+- `launch` compares window ids, so a single-instance app that opens a new window in
+  an already running process is handled. On KDE, an existing window gaining focus
+  is reported as reuse. With `--match`, a title change also detects reuse. An
+  existing window is never returned as a new test window.
   On GNOME `--on` moves the pointer to that monitor first (no click).
 - Without `launch`, start long-running GUI apps detached (`setsid -f ...` or
   your agent's background-process option) so they outlive the shell call, then
