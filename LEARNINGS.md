@@ -1,0 +1,272 @@
+# Learnings
+
+Lessons from real sessions with this skill, oldest first. SKILL.md says when to
+read and write this file ("Keep this skill current"). Add entries with
+`lcu learn add` and run `lcu learn check` after any edit.
+
+Each entry is one verified lesson:
+
+    ### YYYY-MM-DD · kind · one-line lesson
+    - Status: active | promoted (moved into SKILL.md) | superseded (by a newer entry) | wrong
+    - App: window class or app name (kind app only)
+    - Desktop: kde | gnome | cosmic | all (all = holds on every desktop)
+    - Seen on: compositor, shell, libei and toolkit versions (stamped by the helper)
+    - What: what happened or what is true
+    - Do: what to do instead, or how to use it
+    - Evidence: the command and the observation that verified it
+
+Kinds: `new` (a capability or trick), `better` (a better way than SKILL.md
+gives), `broken` (SKILL.md advice that failed or stopped working), `app` (how
+one app behaves under this skill). Never delete an entry; change its Status
+and say why, so a later session does not re-learn a dead end.
+
+Entries before 2026-10-30 come from the three skills this one merges
+(kde-computer-use, gnome-computer-use, cosmic-computer-use); their commands name
+the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
+`lcu input`, `lcu a11y` and so on.
+
+## Entries
+
+### 2026-10-29 · better · Custom sliders in Electron apps can ignore arrow keys; click the stop
+- Status: active
+- Desktop: all
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: A web-drawn slider (a reasoning-effort picker in an Electron app) did not move on `key left` with the popup open, while a click on the track moved the handle.
+- Do: Crop-screenshot the slider, measure the spacing between stop dots, click one stop away from the handle, then screenshot again and read the label to confirm the value.
+- Evidence: `kde-input.py key left` left the label unchanged; `kde-input.py move <handle_x-42> <y> click left` changed it to the next value, confirmed by a crop screenshot.
+
+### 2026-10-29 · better · Re-crop after layout changes; a reused --area can cut off the target
+- Status: active
+- Desktop: all
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: The same `--area` crop that showed an app's message box in one view cut off its left edge in another view of the app, hiding attached chips that had to be checked before sending.
+- Do: Before trusting a crop for verification, derive it from a fresh full-window shot of the current view; if the left or right edge of the control is not visible, widen the crop.
+- Evidence: Two `kde-capture.py shot --area` calls with the same box: the first showed the whole composer, the second (different view) started mid-chip; a wider crop showed both chips.
+
+### 2026-10-29 · new · GNOME Shell dialogs (Run a Command, Looking Glass, prompts) open on the monitor under the pointer
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Alt+F2 opened the Run a Command dialog on DP-1 while the pointer was there; a screenshot of the primary monitor showed only the dim backdrop.
+- Do: Find shell dialogs with gnome-a11y.py find gnome-shell --name ... (monitor-independent), or screenshot the monitor that holds the pointer, or move the pointer to the wanted monitor first.
+- Evidence: gnome-input.py key alt+f2 -> gnome-capture.py shot --screen eDP-1 showed no dialog, --screen DP-1 showed it; a11y find gnome-shell --name 'run a command' matched in both cases
+
+### 2026-10-29 · broken · GTK4 accessibility boxes ignore container margins; centres can be 10-30 px off
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: In a zenity (GTK 4.16) dialog the No button's a11y box was at (0,149) in the window while it is drawn at (24,162); nested labels inherit the same origin. Sizes are correct.
+- Do: In GTK4 apps prefer gnome-a11y.py press, or OCR coordinates for clicks; if you click at an a11y centre, verify the target with a crop screenshot first.
+- Evidence: gnome-a11y.py find zenity --name no -> centre 678,513; screenshot shows the button spanning 642..762 x 504..546 (centre 702,525); OCR gave 702-ish
+
+### 2026-10-29 · better · Never use OCR alone to confirm a dialog opened; the same words may be in another window
+- Status: active
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: An OCR check for 'Run a Command' matched text in a chat window that quoted the phrase while the dialog itself had not opened on that monitor.
+- Do: Confirm shell UI through gnome-shell's accessibility tree (role + exact name + a focused text entry) before typing into it; for app dialogs use gnome-window.py active.
+- Evidence: gnome-ocr.py 'Run a Command' --area ... matched a chat line ('alone': false) with no dialog on that screen
+
+### 2026-10-29 · broken · gnome-a11y.py --name "" matched every control; press hit the first button (fixed)
+- Status: promoted
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: An empty --name was treated as no name filter, so press --role button activated the first button in the tree (an app's Launch button) instead of failing.
+- Do: Fixed: the script now rejects an empty --name. Always pass a real name to press.
+- Evidence: gnome-a11y.py press <libadwaita app> --name '' --role button --depth 25 -> pressed first button; after fix -> exits 1 with 'must not be empty'
+
+### 2026-10-29 · better · libadwaita apps need gnome-a11y.py --depth 25-30; default 12 finds nothing
+- Status: active
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: In a libadwaita (GTK4) app, find --name for a visible button returned no matches at the default depth 12; tree --depth 25 showed it.
+- Do: Pass --depth 30 to find/press in libadwaita apps; find now prints this hint on stderr when nothing matches.
+- Evidence: find gearlever --name 'Check for updates' --exact -> []; same with --depth 30 -> match
+
+### 2026-10-29 · new · Nautilus to GTK4 app drag-and-drop works with a stepped manual drag
+- Status: promoted (input.py drag, 2026-10-30)
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Dragging a file icon from Nautilus into another GTK4 app's window on the same monitor was accepted as a file drop.
+- Do: Activate Nautilus, then: move ICON sleep 200 down left sleep 200 rmove 10 5 sleep 100 rmove 20 10 sleep 100, several move steps toward the target with sleep 100, move TARGET sleep 500 rmove 3 3 sleep 500 up left. The small first moves start the DnD; the pause over the target lets it register.
+- Evidence: gnome-input.py with that sequence -> target app showed the dropped file's details page
+
+### 2026-10-29 · app · Gear Lever 4.x: the install button is 'Move to the app menu', and it moves the file
+- Status: active
+- App: it.mijorus.gearlever
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: After an AppImage is opened or dropped, there is no 'Install' button. The red 'Move to the app menu' button installs it: the file is moved (not copied) to ~/AppImages/<name>.appimage and a .desktop entry is written to ~/.local/share/applications. Afterwards the page shows Launch/Remove. The back arrow at the top-left returns to 'Installed applications'. Drag-and-drop of an AppImage onto the main window is accepted.
+- Do: gnome-a11y.py press gearlever --name 'Move to the app menu' --role button --exact --depth 25; verify with ls ~/AppImages and the Installed applications list
+- Evidence: Gear Lever 4.6.2 flatpak: press -> ok, file gone from source folder, present in ~/AppImages, listed under Installed applications
+
+### 2026-10-29 · app · Starting VSCodium/VS Code with --force-renderer-accessibility switches the editor to Screen Reader Optimized mode
+- Status: active
+- App: codium
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Launching the VSCodium AppImage with --force-renderer-accessibility (as SKILL.md advises for an a11y tree) made the status bar show 'Screen Reader Optimized'; the editor then behaves in screen-reader mode (e.g. different word highlighting).
+- Do: Only add the flag when you need AT-SPI inside the window; for opening a file or screenshots leave it off, or mention the mode in your report. It applies to that run only unless editor.accessibilitySupport is saved in settings.
+- Evidence: vscodium.appimage --force-renderer-accessibility --new-window file.txt -> status bar item 'Screen Reader Optimized' visible in a full-monitor screenshot
+
+### 2026-10-29 · new · Super+Left/Right through gnome-input.py half-tiles the focused window exactly
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: To put a window on the left half of a monitor, the GNOME tiling shortcut is simpler than computing geometry and accounts for the work area (panels).
+- Do: gnome-window.py activate MATCH; confirm with active; gnome-input.py key super+left; check with gnome-window.py info MATCH.
+- Evidence: maximized Electron window on a 1536x960 monitor with a bottom panel -> after key super+left: x=0 y=0 width=768 height=912, maximized=false
+
+### 2026-10-29 · broken · Screenshots of a lower-scale monitor were upscaled and blurry
+- Status: promoted (SKILL.md "Coordinates" and gnome-capture.py)
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Shell.Screenshot renders the whole stage at the largest monitor scale (1.667), so a crop of eDP-1 (scale 1.25) came out 2560x1600 instead of 1920x1200 and visibly soft.
+- Do: Fixed in gnome-capture.py with bridge version 3: regions inside one monitor are rendered with Clutter.Stage.paint_to_content at that monitor's scale. Prefer --screen/--window/--area over whole-desktop shots when text must be read.
+- Evidence: shot --area 0 0 600 300 before: 1000x500 at 1.6667; after: 750x375 at 1.25, SSIM 1.000 against a native Mutter ScreenCast frame of the same area
+
+### 2026-10-29 · new · New app windows open on the pointer's monitor and may ignore their saved maximized state; use gnome-window.py launch
+- Status: promoted (SKILL.md)
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Loupe opened on DP-1 because the pointer was there, although the task was on eDP-1, and it came back unmaximized after being maximized and closed through gnome-window.py close.
+- Do: Start apps with gnome-window.py launch --on OUTPUT [--maximize|--fullscreen] -- CMD; it moves the pointer to OUTPUT first, waits for the new window, moves it if needed and applies the state.
+- Evidence: gio open file.png with pointer on DP-1 -> window on DP-1; launch --on eDP-1 --maximize -- loupe file.png -> output eDP-1, maximized true, 0,0 1536x912
+
+### 2026-10-29 · better · Save and restore the user's clipboard around wl-copy pastes
+- Status: promoted (SKILL.md)
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Pasting long text (comments, bug reports) through wl-copy + ctrl+v replaced whatever the user had copied (an image in one case).
+- Do: Before: wl-paste --list-types | head -1 > types; wl-paste --no-newline > clip.bak. After: wl-copy --type "$(cat types)" < clip.bak. Mention it in the final message.
+- Evidence: Saved image/png 226829 B, pasted a GitLab comment, restored; wl-paste --list-types showed image/png and the same byte count
+
+### 2026-10-29 · broken · pkill -f PATTERN in a Bash tool call can kill the call's own shell
+- Status: promoted (SKILL.md)
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: pkill -f /usr/bin/loupe matched the bash -c command line that contained the same text and killed it (exit 144) before anything else ran.
+- Do: Use pgrep -x NAME / pkill -x NAME, flatpak kill APPID, or gnome-window.py close; never pkill -f with a pattern that appears in your own command.
+- Evidence: bash -c '...pkill -f /usr/bin/loupe; ...' -> exit code 144, no later command ran
+
+### 2026-10-29 · new · Flatpak apps cannot read files passed by path unless they go through the document portal
+- Status: promoted (SKILL.md)
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: flatpak run org.gnome.Showtime /tmp/x.webm failed with 'No such file'; the same file opened via gio open (or flatpak run --file-forwarding ... @@u file @@) worked through /run/user/UID/doc/.
+- Do: Open files in Flatpak apps with gio open FILE or gnome-window.py launch -- gio open FILE, and keep test files outside /tmp (e.g. under ~/Desktop) since /tmp is private to the sandbox.
+- Evidence: Showtime log: filesrc No such file /tmp/...; gio open ~/Desktop/...webm -> Playing video: file:///run/user/1000/doc/<id>/...
+
+### 2026-10-29 · new · Catch short-lived UI glitches by recording the screen and diffing frames
+- Status: promoted (SKILL.md)
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: A viewer redrew part of an image wrongly a few seconds after maximizing; single screenshots kept missing the moment or caught the wrong state.
+- Do: gnome-capture.py record --screen OUTPUT while reproducing, then ffmpeg -vf fps=20 to PNGs and compare each frame with the last (or a reference) per region to find when and where it changes; crop those frames to look.
+- Evidence: 20 fps frame diff of a 10 s recording showed the bottom band changing at 5.95-6.3 s while the top stayed fixed; the cropped frames showed the corrupted strip
+
+### 2026-10-29 · app · Jira's description editor needs a second click before select-all, and converts pasted Markdown
+- Status: active
+- App: Jira Cloud (redhat.atlassian.net) in a browser
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: In the Create dialog the first click on the template only activated the editor; ctrl+a + ctrl+v then did nothing. A second click inside the active editor, ctrl+a, ctrl+v replaced the template, and the pasted Markdown (### headings, lists, backticks, links) became formatting.
+- Do: Click the description, click again inside it, ctrl+a, ctrl+v; scroll the dialog to check the template is gone. Pickers (Affects versions, Components): click, type the value, Enter.
+- Evidence: First paste: template unchanged in a crop screenshot; second: headings and code spans rendered, template text gone
+
+### 2026-10-29 · app · Switch GitLab's comment box to plain text before pasting Markdown
+- Status: active
+- App: GitLab (gitlab.gnome.org) in a browser
+- Desktop: all
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: The comment box opens in rich-text mode. Its 'Switch to plain text editing' link under the box gives a Markdown textarea; Markdown pasted there rendered correctly on post. (Pasting Markdown into the rich-text mode was not tested.)
+- Do: Click 'Switch to plain text editing', paste, check the text, then click Comment.
+- Evidence: Pasted a Markdown comment in plain-text mode; the posted note rendered bullets, code spans and issue links
+
+### 2026-10-29 · new · cosmic-comp refuses its own EIS D-Bus method to everyone but the portal and the on-screen keyboard
+- Status: promoted
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: com.system76.CosmicComp.Ei.GetSenderSocket (the COSMIC twin of Mutter's ConnectToEIS) checks that the caller owns org.freedesktop.impl.portal.desktop.cosmic or com.system76.CosmicOSK; any other caller gets AccessDenied.
+- Do: Get input through the RemoteDesktop portal with persist_mode 2 and keep the restore token (cosmic-input.py does this). Do not try to own those bus names.
+- Evidence: gdbus call to /com/system76/CosmicComp/Ei GetSenderSocket(3) -> org.freedesktop.DBus.Error.AccessDenied; cosmic-comp src/dbus/ei.rs ALLOWED_NAMES lists only those two names
+
+### 2026-10-29 · broken · cosmic-comp sends KEYBOARD_MODIFIERS EIS events every ~150 ms, so "wait until quiet" never ends
+- Status: promoted
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: After the devices are resumed, the EIS connection keeps receiving bursts of five EI_EVENT_KEYBOARD_MODIFIERS; a device-setup loop that waited for silence ran into its 3 s timeout on every call.
+- Do: Count only seat and device events when deciding that device setup is finished (fixed in cosmic-input.py; a call now takes ~0.3 s).
+- Evidence: tracing Input._events printed KEYBOARD_MODIFIERS at 0.16 s, 0.31 s, 0.47 s... until 3.0 s; after the fix cosmic-input.py --list-regions took 0.33 s
+
+### 2026-10-29 · new · Two windows can report the activated state at once, one per monitor; only the last activated one gets keys
+- Status: promoted
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: After moving a focused window to the other monitor, cosmic-window.py list showed it and the previous window on the first monitor both active. A key went to whichever was activated last; moving the pointer over the other one (no click) did not change that.
+- Do: Run cosmic-window.py activate MATCH immediately before key/type; do not infer keyboard focus from the active flag alone.
+- Evidence: two input_probe.py windows on eDP-1 and DP-1, both active:true; activate P1 + key a -> only P1 logged a; activate P2 + key b -> only P2 logged b; pointer onto P2 + key c -> P1 logged c
+
+### 2026-10-29 · new · GTK 4.24 accessibility boxes line up exactly with cosmic-comp window geometry
+- Status: active
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: The gnome skill saw GTK 4.16 boxes ignore container margins. On GTK 4.24 a dialog's No button was at window (274,102) 53x34 in AT-SPI, exactly where the screenshot of the window (at cosmic-comp's reported x/y) drew it.
+- Do: cosmic-a11y.py find box centres are safe click targets in GTK 4.24 apps (still check with a crop).
+- Evidence: cosmic-a11y.py tree on tests/dialog.py vs cosmic-capture.py shot --window: button 'No' (274,102,53,34) = drawn at 343..408 x 128..170 px at scale 1.25; tests/test-a11y.sh 'click No at accessibility coordinates' ok
+
+### 2026-10-29 · new · Window-source captures come out at 1 px per logical px, output captures at native resolution
+- Status: promoted
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: ext-image-copy-capture of a foreign toplevel returned a 1707x904 buffer for a 1707x904 logical window on a 1.5-scale monitor, while the output capture of that monitor was 2560x1440.
+- Do: For sharp window shots raise the window and crop it from its output (cosmic-capture.py shot --window, the default); use --own only when the window is covered.
+- Evidence: CaptureSession(window=...) size (1707, 904); CaptureSession(output=DP-1) size (2560, 1440)
+
+### 2026-10-29 · new · A second launch of a single-instance GTK app opens no new window
+- Status: active
+- Desktop: all
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: Starting tests/dialog.py twice with the same application id (default GApplication flags) produced only one window: the second process handed its activation to the first and exited.
+- Do: For test windows use Gio.ApplicationFlags.NON_UNIQUE; when waiting for a user app's new window, match by new window id (cosmic-window.py launch), not by process.
+- Evidence: dialog.py focus-test-A then focus-test-B -> list showed no focus-test-B; with NON_UNIQUE both windows appeared
+
+### 2026-10-29 · new · Drag-and-drop from COSMIC Files works with cosmic-input.py drag; a large first move after the press cancels it
+- Status: promoted (input.py drag, 2026-10-30)
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
+- What: Dropping a file from COSMIC Files on one monitor onto a Flatpak libadwaita window (Gear Lever) on the other monitor works with the built-in drag (20 even steps). It fails when the first motion after the press jumps far from the item (about 190 px), even with pauses and a final move over the target, and with press-jump-release. Pauses are not what makes it work.
+- Do: Use cosmic-input.py drag SRC_X SRC_Y DST_X DST_Y. For a hand-built drag, make the first move after down left small (under ~20 px, still on the item), then step to the target.
+- Evidence: Files row on DP-1 to Gear Lever on eDP-1, success = Gear Lever opened the file's page: drag 9/10; stepped moves with 100-200 ms pauses but a 190 px first move 0/5, same with a 15 px first move 2/2; press, jump, release 0/5
+
+### 2026-10-30 · better · Spectacle -a and -m give native-scale shots on KDE; -m follows the active output, not the pointer
+- Status: promoted (SKILL.md Coordinates, kde/capture.py)
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: Spectacle's whole-desktop grab (-f) is rendered at one uniform scale (2.0 with monitors at 1.25 and 1.6), so crops of lower-scale monitors are upscaled. -a (active window) returns the window at its monitor's scale; -m (current monitor) returns KWin's active output, the one holding the focused window, at its native size, even when the pointer is on the other monitor.
+- Do: Promoted: lcu capture shot uses -a for --window and -m for --screen/--area on the active output, else crops -f; the JSON 'source' says which.
+- Evidence: spectacle -b -n -f -> 6272x2120 for a 3136x1060 desktop; -m with the pointer on DP-1 and focus on eDP-1 -> 1920x1200 showing eDP-1; -a on a maximized window 1536x914 -> 1920x1143
+
+### 2026-10-30 · broken · KDE ScreenCast recordings of a still screen ended early
+- Status: promoted (kde/capture.py)
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: KWin sends PipeWire frames only when the picture changes, so a 3 s recording of a static window gave a 0.6-1.0 s WebM; pipewiresrc keepalive-time=100 did not change that.
+- Do: Fixed (promoted): lcu capture record pads the end with the last frame up to the wall-clock length (ffmpeg tpad=stop_mode=clone), like the COSMIC recorder.
+- Evidence: record --seconds 3 --window <static probe> -> 0.566 s before the fix; tests/test-record.sh after it -> 3.0 s for both monitors, an area and a window
+
+### 2026-10-30 · broken · wl-copy with captured stdout/stderr never returns; paste lost the user's clipboard once
+- Status: promoted (input.py paste)
+- Desktop: all
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: wl-copy forks a server that keeps serving the selection and holds the pipes it inherited, so subprocess.run(capture_output=True) on it timed out; the paste action died before restoring the clipboard.
+- Do: Fixed (promoted): input.py runs wl-copy with stdout/stderr to /dev/null and text on stdin, and restores the clipboard in a finally block. If a paste ever dies anyway on KDE, Klipper's history (getClipboardHistoryItem 1) holds the previous text.
+- Evidence: lcu input paste probe-paste -> TimeoutExpired after 10 s, clipboard left as 'probe-paste'; after the fix tests/test-input.sh 'paste put the clipboard back' ok and the clipboard hash was unchanged
+
+### 2026-10-30 · better · OCR missed a focus-ringed button in a dark theme; a greyscale pass reads it
+- Status: promoted (ocr.py)
+- Desktop: all
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: tesseract (psm 11) on a dark GTK4 dialog read 'Yes' but not the focused 'No' button (red focus ring), so a search for No matched only the sentence 'click No' and the click missed. The greyscale copy read both; 2x or 3x upscaling made it worse.
+- Do: Promoted: lcu ocr reads a greyscale and a colour copy and merges the matches; it now found the button at the same centre the accessibility tree gives.
+- Evidence: tests/test-a11y.sh OCR step: FAIL (exit open) before; tesseract on format=gray -> 'No(96) No(96)'; after the change OCR No at 2458,640 = a11y centre, test 3/3 ok

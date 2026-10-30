@@ -1,0 +1,74 @@
+#!/usr/bin/python3 -s
+"""lcu - computer use on Linux Wayland desktops (KDE Plasma 6, GNOME, COSMIC).
+
+  lcu [--desktop kde|gnome|cosmic] TOOL [ARGS...]
+
+TOOLS
+  detect     which desktop this is, why, and which backend each tool uses (JSON)
+  check      every requirement of the detected desktop, changes nothing (exit 0 = ok)
+  setup      the detected desktop's one-time setup (asks before anything visible)
+  input      mouse and keyboard: move, click, drag, scroll, key, type, paste ...
+  window     list, activate, minimize, maximize, fullscreen, move-to, launch, close ...
+  capture    screens, shot, frames, record, record-setup
+  a11y       find and press controls by name (AT-SPI)
+  ocr        find text on screen (tesseract)
+  learn      the skill's lessons log: list, add, check
+
+`lcu TOOL --help` lists a tool's options. The desktop is detected once (see
+scripts/lcu_env.py) and passed to every child process as LCU_DESKTOP, so the
+commands are the same everywhere; where a desktop cannot do something, the
+tool says so and exits non-zero.
+"""
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+SCRIPTS = ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+import lcu_env  # noqa: E402
+
+SHARED = {"input": "input.py", "a11y": "a11y.py", "ocr": "ocr.py", "learn": "learn.py"}
+PER_DESKTOP = {"window": "window.py", "capture": "capture.py"}
+
+
+def run(path, args):
+    os.execv(sys.executable, [sys.executable, "-s", str(path), *args])  # -s: system modules only
+
+
+def main(argv):
+    if argv[:1] == ["--desktop"] and len(argv) > 1:
+        os.environ["LCU_DESKTOP"] = argv[1]
+        argv = argv[2:]
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return 0
+    name, args = argv[0], argv[1:]
+    if name == "detect":
+        import json
+        d = lcu_env.detect()
+        d["backends"] = lcu_env.BACKENDS.get(d["desktop"], {})
+        print(json.dumps(d, indent=1))
+        return 0 if d["desktop"] else 1
+    if name in SHARED:
+        if name != "learn":  # learn works anywhere, e.g. to read the log on another machine
+            os.environ["LCU_DESKTOP"] = lcu_env.desktop()
+        run(SCRIPTS / SHARED[name], args)
+    d = os.environ["LCU_DESKTOP"] = lcu_env.desktop()
+    if name in PER_DESKTOP:
+        run(SCRIPTS / d / PER_DESKTOP[name], args)
+    if name == "check":
+        os.execv("/bin/bash", ["bash", str(SCRIPTS / d / "check-requirements.sh"), *args])
+    if name == "setup":
+        if d == "gnome":
+            os.execv("/bin/bash", ["bash", str(SCRIPTS / "gnome" / "setup.sh"), *args])
+        if d == "cosmic":
+            run(SCRIPTS / "input.py", ["--setup"])
+        print("KDE needs no setup for input, windows or screenshots. Real-time recording needs a one-time "
+              "screen-share grant: `lcu capture record-setup` (shows KDE's share dialog; only with the user present).")
+        return 0
+    sys.exit(f"unknown tool {name!r}; see `lcu --help`")
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
