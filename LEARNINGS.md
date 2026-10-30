@@ -381,3 +381,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: drag-move used 8 px moves 25 ms apart plus fixed pauses: about 2 s overhead and 9.5 s for 1620 px. Benchmarks on a libcosmic window (same screen and across monitors with scales 1.25/1.5): step 8-2000 px, interval 0-25 ms, all exit 0 with 0 px error. A plain timed drag without the threshold step lands one pointer step short (the client starts its move on the first motion), and fixed sleeps overrun (50 moves at 20 ms took 1.5 s). KWin script queries take about 4 ms.
 - Do: Use the default (0.4 s), --fast (0.1 s) or --slow (1 s); the glide is clock-paced and aims at target + measured lag. For hand-built timed drags with input, nudge 4 px first and shift the end point by the nudge, and pace moves by the clock, not fixed sleeps.
 - Evidence: Warehouse COSMIC 700x700, eDP-1 <-> DP-1: --fast 0.103-0.105 s, default 0.404 s, --slow 1.005 s, all landed exactly, corrections 0; earlier raw input drags: 0.1 s -> 77,16 px short, 1 s (50x20 ms) -> 14,3 px short and 1.5 s long
+
+### 2026-10-30 · better · OCR can match a word inside a neighbouring longer button; check alone and a pointer crop
+- Status: active
+- Desktop: all
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: Looking for a 'Comment' button next to a 'Comment and close issue' button, lcu ocr Comment returned only one match, alone false: the first word of the longer, destructive button. The real button was about 100 px to its left and was not returned at all.
+- Do: Before clicking an OCR match for a short label, require alone: true or compute the point from a screenshot, then hover and take capture shot --area ... --pointer to see which button the pointer is on. Treat alone: false on a button-sized label as a warning.
+- Evidence: ocr Comment -> [2012,865] alone false (inside 'Comment and close issue'); screenshot placed the Comment button at 1914,863; pointer crop at 1914,863 showed the hand on 'Comment'
