@@ -270,3 +270,12 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: tesseract (psm 11) on a dark GTK4 dialog read 'Yes' but not the focused 'No' button (red focus ring), so a search for No matched only the sentence 'click No' and the click missed. The greyscale copy read both; 2x or 3x upscaling made it worse.
 - Do: Promoted: lcu ocr reads a greyscale and a colour copy and merges the matches; it now found the button at the same centre the accessibility tree gives.
 - Evidence: tests/test-a11y.sh OCR step: FAIL (exit open) before; tesseract on format=gray -> 'No(96) No(96)'; after the change OCR No at 2458,640 = a11y centre, test 3/3 ok
+
+### 2026-10-30 · better · Resize a client-decorated window by its edge with a slow manual drag, not input drag
+- Status: active
+- App: libcosmic
+- Desktop: kde
+- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
+- What: On KWin, 'input drag' from inside the 8 px resize border of a libcosmic (client-side decorated) window left its size unchanged, although hovering there showed the diagonal resize cursor. Likely the same for other CSD toolkits.
+- Do: Hover first and confirm the resize cursor with 'capture shot --area ... --pointer', then: input move X Y sleep 200 down left sleep 300 rmove 4 3 sleep 50 rmove 10 6 ... (steps 50 ms apart) sleep 400 up left. Read the new size back with 'window info'.
+- Evidence: input drag 2298 698 2700 900 -> window info still 700x500; manual down/rmove/up sequence from 2296,696 -> 1103.75x698.75
