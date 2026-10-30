@@ -397,3 +397,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: In LibreWolf on KDE, with the window activated and the pointer over the page, keydown ctrl + three scroll -1 + keyup ctrl zoomed 100% -> 130% (address-bar badge), and the same with scroll 1 went back to 100%.
 - Do: Activate the target window, put the pointer over it, and send keydown ctrl, scroll steps, keyup ctrl in one lcu input call so the key is released. Check the result (zoom badge or a screenshot).
 - Evidence: lcu input move 768 600 keydown ctrl scroll -1 x3 keyup ctrl -> 130% badge; scroll 1 x3 -> badge gone (100%)
+
+### 2026-10-30 · better · Find a context menu's real position with window list --all before clicking its items
+- Status: active
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: A right-click near a monitor's bottom-right edge in LibreWolf opened the menu up and to the left of the pointer, so a crop below the pointer missed it. window list --all listed the menu as a librewolf window with an empty title and its exact geometry (942,255 357x381); OCR inside that area found the items.
+- Do: After right-clicking, run window list --all, take the new untitled popup of that app, crop and OCR inside its geometry, and click an item whose match has alone: true (Copy vs Copy Link to Highlight, Paste vs Paste Without Formatting).
+- Evidence: right-click at 1300,637 -> popup librewolf '' 942,255 357x381; ocr Copy in that area -> [973,278] alone true and [973,361] alone false; click -> clipboard held the selected text
