@@ -449,6 +449,9 @@ $L capture record out.webm --pointer ...                          # cursor drawn
 $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps stills joined: small evidence files
 ```
 
+- To film input (clicks, drags), pass `--pointer`. Without it KDE leaves out the
+  cursor and the drag-and-drop icon, so a drag shows no motion at all, only the
+  result after the drop (KDE, 2026-10-30).
 - Videos are as long as the recording took: when nothing changes, the last frame
   is repeated (KDE pads the end; COSMIC writes a constant rate).
 - `.webm` gives VP8/VP9, `.mp4` H.264 (OpenH264; Fedora's ffmpeg has no libx264).

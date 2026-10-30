@@ -349,3 +349,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: kill -INT on capture record returns at once, but the script then finalises gst output and re-encodes with ffmpeg (padding to wall-clock length). For an 80 s 2560x1440 take this took about a minute; reading the file earlier gave 'File ended prematurely' and a partial size.
 - Do: Run record with stdout redirected to a log; after kill -INT, wait until the log has a second JSON line with "file" (or the pid is gone) before ffprobe or frame extraction.
 - Evidence: capture record --seconds 900 --screen DP-1 in background, kill -INT after ~80 s -> immediate ffprobe: truncated file; ~60 s later log printed {"file": ...} and ffprobe gave duration 82.8 s, frames readable
+
+### 2026-10-30 · broken · KDE recordings without --pointer hide the drag-and-drop icon too, so drags are invisible
+- Status: promoted
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: capture record --screen without --pointer requests cursor_mode hidden. A Dolphin to Gear Lever drag produced no changed frames at all (0 to 19 s static, drop result at 19.6 s). The same kind of drag recorded with --pointer showed the cursor and the dragged file icon moving every frame. The DnD icon is composited with the cursor in the ScreenCast stream.
+- Do: Pass --pointer whenever the video should show input. For a visible drag, also slow it down (manual down/move/sleep/up sequence over ~3 s); input drag finishes in about 1 s.
+- Evidence: no --pointer: mpdecimate found no distinct frames during the drag; --pointer: distinct frames every ~33 ms from 9.4 to 13.5 s, extracted frames show cursor plus Dolphin drag icon over the target folder
