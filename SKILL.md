@@ -8,9 +8,12 @@ description: Control this user's Linux Wayland desktop (KDE Plasma 6, GNOME or C
 Everything works as the desktop user: no root, no uinput, no ydotool, nothing from
 pip. One command, `lcu`, detects the desktop and drives it through that
 compositor's own interfaces; the commands, options and JSON are the same everywhere.
+It is plain shell commands, so any agent that can run a shell (Claude Code, Codex,
+Gemini CLI, Antigravity...) uses it the same way.
 
 ```bash
-L=~/.claude/skills/linux-computer-use/lcu
+SKILL_DIR=<the folder that holds this SKILL.md>   # e.g. ~/.agents/skills/linux-computer-use
+L=$SKILL_DIR/lcu
 $L detect          # which desktop, why, and which backend each tool uses
 $L check           # every requirement for this desktop; changes nothing; exit 0 = ok
 ```
@@ -102,7 +105,7 @@ $L learn check        # must exit 0; also lists this desktop's entries recorded 
 ```
 
 **Before you finish the task**: run `$L learn check`, then commit the skill
-change locally (`git -C ~/.claude/skills/linux-computer-use add -A && git -C ... commit -m "learn: <lesson>"`)
+change locally (`git -C "$SKILL_DIR" add -A && git -C "$SKILL_DIR" commit -m "learn: <lesson>"`)
 so it can be reviewed and reverted. **Never push**; pushing needs the user's
 explicit yes after they have seen the diff. In your final message, tell the
 user in one line what you recorded or changed in the skill, or that nothing new came up.
@@ -114,27 +117,25 @@ line or Status.
 ## Pick the right tool first
 
 1. A dedicated MCP/connector for the app (Gmail, Calendar, Drive...) if connected.
-2. Web pages: a browser, never pixel clicks. Claude in Chrome
-   (`mcp__claude-in-chrome__*`, read the `anthropic-skills:chrome-browser` skill
-   first; Chrome must already be running) or the built-in browser
-   (`mcp__Claude_Browser__*`, skill `anthropic-skills:built-in-browser`). They are
-   DOM-aware and much more reliable.
+2. Web pages: your agent's browser tool, never pixel clicks (a browser
+   extension or built-in browser, a browser MCP server such as Playwright or
+   Chrome DevTools, or the agent's browser sub-agent). They are DOM-aware and much
+   more reliable; follow that tool's own instructions.
 3. A CLI, D-Bus or config route for the app if one exists: `xdg-open`, `gio open`,
    `gsettings`, `gdbus`; KDE `kwriteconfig6`, `qdbus-qt6`, `dolphin --select`,
    `okular --page`; GNOME `nautilus --select`; COSMIC `cosmic-randr`,
    `~/.config/cosmic/<component>/v1/<key>` files.
 4. This skill, for native GUI apps and cross-app work.
 
-The Claude desktop app's own computer-use tools (`mcp__computer-use__*`, skill
-`anthropic-skills:computer-use`) are macOS/Windows only; if they ever appear in a
-Linux session, prefer them and follow that skill.
+If your agent has its own desktop computer-use tools that work in this Linux
+session, prefer them; most target macOS/Windows only.
 
 ## Safety rules (learned the hard way)
 
 During development a test sent clicks to the centre of a monitor believing a test
 window was there; it was not, and the clicks landed in the file manager and opened
 one of the user's documents. Later a click meant for a test dialog landed in the
-Claude app because the dialog was not where an earlier listing said. So:
+agent's own chat app because the dialog was not where an earlier listing said. So:
 
 - **Never click or type blind.** Before every click, make sure the intended window
   is the one under the pointer: `$L window info MATCH` for its geometry and
@@ -162,8 +163,8 @@ Claude app because the dialog was not where an earlier listing said. So:
 - Do not close, quit or kill apps the user has open, and do not act inside their
   private apps beyond the task. `window close` only for windows you opened or with
   permission.
-- The prohibited/ask-first rules from the system prompt still apply to anything
-  done through the GUI (purchases, sending messages, passwords, deleting).
+- Your agent's own safety and ask-first rules still apply to anything done
+  through the GUI (purchases, sending messages, passwords, deleting).
 - Full-desktop screenshots contain private windows; look only at what the task
   needs and prefer `--window`/`--area` crops.
 - `paste` replaces the clipboard for a moment and then restores it; say so in your
@@ -304,7 +305,7 @@ xdg-open /path/or/url                   # default handler
   an already running process is handled; "new process" does not mean "new pid".
   On GNOME `--on` moves the pointer to that monitor first (no click).
 - Without `launch`, start long-running GUI apps detached (`setsid -f ...` or
-  Claude Code `run_in_background`) so they outlive the tool call, then
+  your agent's background-process option) so they outlive the shell call, then
   `$L window wait-stable class:<id>`.
 - Flatpak apps only see files passed through the document portal, and `/tmp` is
   private to their sandbox: open files with `gio open FILE`, not
@@ -312,7 +313,7 @@ xdg-open /path/or/url                   # default handler
 - Closing: `$L window close` (graceful; the app may ask to save) or the app's own
   quit shortcut. Never `kill` a GUI app the user is using. For processes you
   started, use `pkill -x NAME` or `flatpak kill APPID`: `pkill -f PATTERN` matches
-  the Bash tool's own command line when it contains PATTERN and kills the call.
+  the agent's own shell command line when it contains PATTERN and kills the call.
 
 ## Finding controls by name: `lcu a11y` (accessibility) and `lcu ocr` (OCR)
 
@@ -353,7 +354,7 @@ Order of preference:
   toolkit-accessibility true`; GNOME's `$L setup` sets it). GTK4 apps register by
   themselves; GTK3, Qt and Electron apps started before it was on expose nothing
   until restarted. Never restart the user's apps for this; fall back to OCR.
-- Electron apps (VS Code/VSCodium, the Claude app...) need
+- Electron apps (VS Code/VSCodium, Slack, the Claude or ChatGPT desktop apps...) need
   `--force-renderer-accessibility` for the tree inside the window. Add it only when
   you start such an app yourself and need the tree: it also switches VS
   Code/VSCodium into Screen Reader Optimized mode (mention it in your report).
@@ -468,6 +469,6 @@ sessions), gnome-ui-mcp (asattelmaier), cosmic-desktop-mcp (mtul0729: Rust, the 
 COSMIC protocols), computer-use-linux (agent-sh: Rust MCP, many desktops) and
 lihe07/computer-use (COSMIC via the portal) are MCP servers that need a build or a
 container. The ydotool/uinput-based skills (dual-wield-mcp, LinUse,
-desktop-control-wayland, dev-test-linux, tine) need root setup. Anthropic's
-`computer-use` skill is macOS/Windows only. This skill keeps one interface across
+desktop-control-wayland, dev-test-linux, tine) need root setup. The agent
+vendors' own computer-use features mostly target macOS/Windows. This skill keeps one interface across
 the three desktops as plain scripts on the system Python, with nothing to build.

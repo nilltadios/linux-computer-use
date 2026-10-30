@@ -1,6 +1,6 @@
 # linux-computer-use
 
-A Claude Code skill that lets Claude use a Linux Wayland desktop the way a person
+An agent skill that lets a coding agent use a Linux Wayland desktop the way a person
 does: move and click the mouse, drag and drop, type and paste, press shortcuts, take
 screenshots and recordings, find buttons by name or by the text on them, and open,
 arrange and close windows. One command, `lcu`, detects whether it is running on
@@ -14,12 +14,24 @@ restore, drag-and-drop that apps accept, full-length recordings of still screens
 and a two-pass OCR; all three share one input, accessibility, OCR and lessons-log
 implementation.
 
+It follows the open Agent Skills layout (a folder with `SKILL.md`, `name` and
+`description` front matter, and its own scripts), and everything it does is plain
+shell commands, so it works with any agent that loads such skills and can run a
+shell: Claude Code, Codex, Gemini CLI, Antigravity and others. Nothing in it calls
+one vendor's tools.
+
 ## Install
 
+Clone it into the skills folder your agent reads; see your agent's documentation
+for the folder. Common ones: `~/.agents/skills/` (shared by several agents, Codex
+among them), `~/.claude/skills/` (Claude Code), `~/.codex/skills/` (Codex),
+`~/.gemini/config/skills/` (Antigravity). For several agents, keep one clone and
+symlink it into the others' folders, so they share one lessons log.
+
 ```bash
-git clone https://github.com/<owner>/linux-computer-use ~/.claude/skills/linux-computer-use
-~/.claude/skills/linux-computer-use/lcu detect
-~/.claude/skills/linux-computer-use/lcu check
+git clone https://github.com/<owner>/linux-computer-use ~/.agents/skills/linux-computer-use
+~/.agents/skills/linux-computer-use/lcu detect
+~/.agents/skills/linux-computer-use/lcu check
 ```
 
 `check` lists what is missing for the detected desktop and changes nothing.
@@ -40,7 +52,7 @@ permission (`lcu setup`).
 ## Use
 
 ```bash
-L=~/.claude/skills/linux-computer-use/lcu
+L=~/.agents/skills/linux-computer-use/lcu    # wherever you cloned it
 $L window list
 $L capture shot /tmp/x.png --window class:org.kde.dolphin
 $L a11y press dolphin --name "New Folder" --role button
@@ -49,7 +61,7 @@ $L input paste "Grüße ✓"
 $L capture record /tmp/x.webm --seconds 5 --screen DP-1
 ```
 
-[SKILL.md](SKILL.md) is the full reference (and what Claude reads);
+[SKILL.md](SKILL.md) is the full reference (and what the agent reads);
 [LEARNINGS.md](LEARNINGS.md) is the log of lessons from real sessions, tagged by desktop.
 
 ## Layout

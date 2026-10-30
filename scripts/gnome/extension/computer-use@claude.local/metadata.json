@@ -1,7 +1,7 @@
 {
   "uuid": "computer-use@claude.local",
   "name": "Computer Use Bridge",
-  "description": "D-Bus bridge for the gnome-computer-use skill: list, focus, move, resize, minimize, maximize, fullscreen and close windows, and take screenshots. Exported on the session bus at org.gnome.Shell /org/claude/ComputerUse.",
+  "description": "D-Bus bridge for the linux-computer-use agent skill: list, focus, move, resize, minimize, maximize, fullscreen and close windows, and take screenshots. Exported on the session bus at org.gnome.Shell /org/claude/ComputerUse.",
   "shell-version": ["45", "46", "47", "48", "49", "50"],
   "url": "https://github.com/nilltadios/gnome-computer-use",
   "version": 1,
