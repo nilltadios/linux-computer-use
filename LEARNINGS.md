@@ -271,11 +271,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Do: Promoted: lcu ocr reads a greyscale and a colour copy and merges the matches; it now found the button at the same centre the accessibility tree gives.
 - Evidence: tests/test-a11y.sh OCR step: FAIL (exit open) before; tesseract on format=gray -> 'No(96) No(96)'; after the change OCR No at 2458,640 = a11y centre, test 3/3 ok
 
-### 2026-10-30 · better · Resize a client-decorated window by its edge with a slow manual drag, not input drag
+### 2026-10-30 · better · Resize a client-decorated window by pointer: inside approach, small steps, measured grab points
 - Status: active
 - App: libcosmic
 - Desktop: kde
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
-- What: On KWin, 'input drag' from inside the 8 px resize border of a libcosmic (client-side decorated) window left its size unchanged, although hovering there showed the diagonal resize cursor. Likely the same for other CSD toolkits.
-- Do: Hover first and confirm the resize cursor with 'capture shot --area ... --pointer', then: input move X Y sleep 200 down left sleep 300 rmove 4 3 sleep 50 rmove 10 6 ... (steps 50 ms apart) sleep 400 up left. Read the new size back with 'window info'.
-- Evidence: input drag 2298 698 2700 900 -> window info still 700x500; manual down/rmove/up sequence from 2296,696 -> 1103.75x698.75
+- What: On KWin, resizing a libcosmic (client-side decorated) window by pointer fails silently in four ways. (1) 'input drag' and any drag whose first move is large (~40 px) do nothing. (2) A single jump onto the border from outside the window does not register: the app picks the resize edge from pointer motion inside it. (3) At scale 1.6 the border is only 2-5 px deep (6 px shows the normal arrow), and 2-3 px in at the rounded bottom-right corner is outside the window, so the press lands in the window behind it. (4) A corner touching the screen edge reads as that side edge alone. Hand resizes also stop at the app's minimum size. Likely similar for other CSD toolkits.
+- Do: Grab 4 px in at the bottom-right corner, 3 px at the top-left, or the middle of the one edge that must move. Confirm the resize cursor first with 'capture shot --area ... --pointer'. Then: input move <12 px further inside> sleep 100 move X Y sleep 200 down left sleep 300, then rmove steps of at most 8 px (12-50 ms apart), then sleep 400 up left. Compare 'window info' before and after, and stop at the first drag that changed nothing so later presses cannot land in other windows.
+- Evidence: input drag 2298 698 2700 900 -> still 700x500; manual sequence from 2296,696 -> 1103.75x698.75. Cursor probes at 2-6 px above the bottom edge: resize arrow at 2-5, normal at 6. 12-step drags of 46 px/step -> unchanged; 8 px steps with an inside approach -> 8 of 8 target sizes reached (widths stop at 940, the app minimum).
