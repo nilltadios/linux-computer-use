@@ -76,7 +76,7 @@ function info(w) {
             client: rect(w.clientGeometry), buffer: rect(w.bufferGeometry),
             output: w.output ? w.output.name : null, active: w === workspace.activeWindow,
             minimized: w.minimized, maximized: maximized(w), fullscreen: w.fullScreen, keepAbove: w.keepAbove,
-            normal: w.normalWindow, workspace: w.desktops.map(d => d.name),
+            normal: w.normalWindow, dock: !!w.dock, desktop: !!w.desktopWindow, workspace: w.desktops.map(d => d.name),
             decorated: w.frameGeometry.width !== w.clientGeometry.width || w.frameGeometry.height !== w.clientGeometry.height, resizing: !!w.resize, moving: !!w.move,
             min_size: {width: w.minSize.width, height: w.minSize.height},
             screen: w.output ? rect(w.output.geometry) : null,
@@ -393,8 +393,10 @@ def drag_resize(argv):
         inside = w["x"] <= x < w["x"] + w["width"] and w["y"] <= y < w["y"] + w["height"]
         if inside:
             return f"{x:g},{y:g} is covered or no visible target frame was found"
-        if not top or (not top["normal"] and top["class"] == "plasmashell"):
+        if not top or top.get("desktop"):
             return None  # outside, over the desktop: a missed press only reaches the wallpaper
+        if top.get("dock"):
+            return "panel"  # the panel window, transparent margin included: a press there reaches the panel
         return f"{x:g},{y:g} is outside the target over {top['class']} {top['title']!r}; refusing a speculative press"
 
     def glide(x1, y1, x2, y2):
@@ -404,7 +406,7 @@ def drag_resize(argv):
             time.sleep(0.025)
 
     def one_drag(sides, dx, dy):
-        """Press on the edge/corner made of `sides`, drag by dx,dy. -> (moved?, note)."""
+        """Press on the edge/corner made of `sides`, drag by dx,dy. -> None if it resized, else why not."""
         w = win()
         offs = [_grab_offsets(w, s) for s in sides]
         tries = list(zip(*[o + [o[-1]] * (max(map(len, offs)) - len(o)) for o in offs]))
@@ -414,6 +416,14 @@ def drag_resize(argv):
             else:  # corner: x from the horizontal side, y from the vertical one
                 gx, gy = edge_point(w, sides[0], off[0])[0], edge_point(w, sides[1], off[1])[1]
             why = safe_to_press(w, gx, gy)
+            if why == "panel":
+                # The resize zone just outside this edge is under a panel. The presses left to
+                # try are inside the window, which a GTK window (zone in its shadow) ignores.
+                log.append({"press": [gx, gy], "skipped": "on a panel"})
+                if min(off) < 0:
+                    return (f"the {'-'.join(sides)} edge's resize zone is under a panel; move the window "
+                            "away from the panel first or use another --edge")
+                continue
             if why:
                 log.append({"press": [gx, gy], "skipped": why})
                 continue
@@ -446,8 +456,8 @@ def drag_resize(argv):
             time.sleep(0.3)
             inp.button("left", False)
             log.append({"press": [gx, gy], "resize_started": True, "to": [gx + dx, gy + dy]})
-            return True
-        return False
+            return None
+        return f"no press on the {'-'.join(sides)} edge started a resize; inspect the returned window state"
 
     try:
         passes, stopped = 0, set()
@@ -471,9 +481,9 @@ def drag_resize(argv):
                 jobs = ([((hside,), sx, 0)] if ddx else []) + ([((vside,), 0, sy)] if ddy else [])
             for sides, dx, dy in jobs:
                 before = win()
-                if not one_drag(sides, dx, dy):
-                    _fail(f"no press on the {'-'.join(sides)} edge started a resize; inspect the returned window state",
-                          window=before, attempts=log)
+                why = one_drag(sides, dx, dy)
+                if why:
+                    _fail(why, window=before, attempts=log)
                 after = (wait_stable(m) or [win()])[0]
                 if dx and abs(after["width"] - before["width"]) < 1:
                     stopped.add("w")

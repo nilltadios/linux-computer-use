@@ -67,6 +67,40 @@ class ResizeValidation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fake.drag(0,0,10,10,step=step)
 
+    def test_resize_zone_under_panel_sends_no_press(self):
+        # A GTK window whose bottom edge is 4 px above a floating panel: its resize zone
+        # (the shadow below the frame) is under the panel's window, so nothing may be pressed.
+        from types import SimpleNamespace
+        w = {'id': 'probe', 'normal': True, 'maximized': False, 'minimized': False, 'fullscreen': False,
+             'decorated': False, 'resizing': False, 'moving': False, 'output': 'DP-1',
+             'x': 100, 'y': 4, 'width': 800, 'height': 906,
+             'client': {'x': 100, 'y': 4, 'width': 800, 'height': 906},
+             'buffer': {'x': 75, 'y': -21, 'width': 850, 'height': 956},
+             'screen': {'x': 0, 'y': 0, 'width': 1700, 'height': 960},
+             'area': {'x': 0, 'y': 0, 'width': 1700, 'height': 914},
+             'min_size': {'width': 400, 'height': 250}}
+        panel = {'id': 'panel', 'normal': False, 'dock': True, 'desktop': False, 'class': 'plasmashell'}
+        buttons, closed = [], []
+        fake = SimpleNamespace(move=lambda *p: None, button=lambda *b: buttons.append(b), close=lambda: closed.append(True))
+        def run(action, *args, **kwargs):
+            if action == 'info': return {'ok': True, 'windows': [w]}
+            if action == 'pointer': return {'ok': True, 'pointer': {'x': 1, 'y': 1}}
+            if action == 'raise': return {'ok': True, 'windows': [w]}
+            if action == 'at':
+                y = kwargs.get('args', args[1] if len(args) > 1 else None)[1]
+                return {'ok': True, 'windows': [panel] if y >= 898 else [w]}
+            self.fail('unexpected action ' + action)
+        out = io.StringIO()
+        with patch.dict(sys.modules, {'input': SimpleNamespace(Input=lambda: fake, keycode=lambda k: 0)}), \
+                patch.object(window, 'run', side_effect=run), patch.object(window, 'wait_stable', return_value=[w]), \
+                patch.object(window.time, 'sleep'), contextlib.redirect_stdout(out):
+            with self.assertRaises(SystemExit):
+                window.drag_resize(['id:probe', '800', '800', '--edge', 'bottom'])
+        self.assertIn('under a panel', out.getvalue())
+        self.assertEqual(sum(down for _, down in buttons), 0)
+        self.assertEqual(closed, [True])
+
+
 class MoveValidation(unittest.TestCase):
     def sample(self):
         return {'id': 'probe', 'normal': True, 'maximized': False, 'minimized': False,

@@ -286,12 +286,17 @@ chooses edges that fit the usable area; `--left` / `--top` choose the other side
 The command requires exactly one window and refuses minimized, maximized or
 fullscreen windows. It raises the target unless `--no-raise` is supplied, checks
 KWin's actual hit target before a press, approaches from inside, and uses steps
-of at most 8 px. It releases the button and restores the pointer at the end.
+of at most 8 px. It never presses on a panel: an edge whose resize zone lies
+under one (a GTK window's bottom edge just above a floating panel) exits 1 with
+"resize zone is under a panel" and no press, like a person who cannot reach
+it. An edge on the usable area's border is refused the same way; move the
+window first. It releases the button and restores the pointer at the end.
 Exit 0 means the target size was reached (within 1 logical pixel); exit 3 means
 a size limit, size increments or desktop snapping prevented it. Inspect `to`,
 `target`, `note` and `window` in the JSON. Other failures exit 1.
 `window info` includes `area` (usable screen rectangle), `screen`, `buffer`,
-`min_size` (client size), `decorated`, `resizing` and `moving` on KDE.
+`min_size` (client size), `decorated`, `resizing`, `moving`, `dock` (panel) and
+`desktop` (wallpaper) on KDE.
 `window geometry` assigns frame dimensions directly and can bypass an app's
 minimum size; use pointer resizing to test the size a person can reach.
 
