@@ -357,3 +357,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: capture record --screen without --pointer requests cursor_mode hidden. A Dolphin to Gear Lever drag produced no changed frames at all (0 to 19 s static, drop result at 19.6 s). The same kind of drag recorded with --pointer showed the cursor and the dragged file icon moving every frame. The DnD icon is composited with the cursor in the ScreenCast stream.
 - Do: Pass --pointer whenever the video should show input. For a visible drag, also slow it down (manual down/move/sleep/up sequence over ~3 s); input drag finishes in about 1 s.
 - Evidence: no --pointer: mpdecimate found no distinct frames during the drag; --pointer: distinct frames every ~33 ms from 9.4 to 13.5 s, extracted frames show cursor plus Dolphin drag icon over the target folder
+
+### 2026-10-30 · broken · KDE drag-resize and drag-move refuse a window that fills the usable height
+- Status: active
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: Gear Lever (GTK4, client-side decorations) at y 0 with height equal to the usable area: drag-resize --edge bottom-left failed with 'bottom edge is off the usable area' (needs 2 px margin) and drag-move refused any destination (needs the whole frame 16 px inside). After nudging the frame to y 4, height 906, the left edge resized but the bottom press still did not start a resize: the CSD resize border lies under the panel. The top edge then worked.
+- Do: For a full-height or tiled window, first run window geometry to inset it a few px from top and bottom (not a drag; say so if the user asked for drags), then resize height with --edge top, then drag-move. Avoid bottom-edge resizes when the bottom sits on the panel.
+- Evidence: drag-resize 1000 800 --edge bottom-left -> exit 1 off usable area; drag-move 2389 100 -> exit 1 must fit 16 px; after geometry y4 h906: bottom-left -> width 1000 but 'no press on the bottom edge started a resize'; --edge top -> exit 0 1000x800; drag-move 1889 57 --grab 400 20 -> exit 0
