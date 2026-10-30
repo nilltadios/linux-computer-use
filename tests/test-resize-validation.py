@@ -67,5 +67,72 @@ class ResizeValidation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fake.drag(0,0,10,10,step=step)
 
+class MoveValidation(unittest.TestCase):
+    def sample(self):
+        return {'id': 'probe', 'normal': True, 'maximized': False, 'minimized': False,
+                'fullscreen': False, 'decorated': True, 'client': {'y': 130},
+                'x': 100, 'y': 100, 'width': 400, 'height': 300, 'moving': False, 'resizing': False}
+
+    def test_bad_move_arguments_never_contact_desktop(self):
+        for args in [[], ['id:a','100','100'], ['id:a','100','100','--grab','10'],
+                     ['id:a','nan','100','--grab','10','10'],
+                     ['id:a','100','100','--grab','10','inf'],
+                     ['id:a','100','100','--grab','10','10','--typo']]:
+            with self.subTest(args=args), patch.object(window,'run',side_effect=AssertionError('desktop contacted')):
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                    window.drag_move(args)
+
+    def test_refuses_ambiguous_or_maximized_window(self):
+        w=self.sample()
+        for wins in [[w,w],[dict(w,maximized=True)]]:
+            with patch.object(window,'run',return_value={'ok':True,'windows':wins}):
+                with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                    window.drag_move(['id:probe','200','200','--grab','100','15'])
+
+    def test_refuses_grab_in_content(self):
+        with patch.object(window,'run',return_value={'ok':True,'windows':[self.sample()]}):
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                window.drag_move(['id:probe','200','200','--grab','100','100'])
+
+    def test_offscreen_destination_is_refused_before_input(self):
+        def run(action,*args,**kwargs):
+            if action=='info': return {'ok':True,'windows':[self.sample()]}
+            if action=='areas': return {'ok':True,'outputs':[{'area':{'x':0,'y':0,'width':1000,'height':800}}]}
+            self.fail('unexpected desktop action '+action)
+        with patch.object(window,'run',side_effect=run):
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                window.drag_move(['id:probe','950','200','--grab','100','15'])
+
+    def test_blocked_grab_sends_no_press_and_cleans_up(self):
+        self.exercise_grab(blocked=True)
+
+    def test_failed_move_releases_button_without_retry(self):
+        self.exercise_grab(blocked=False)
+
+    def test_pointer_interference_sends_no_press(self):
+        self.exercise_grab(blocked=False, changed_pointer=True)
+
+    def exercise_grab(self, blocked, changed_pointer=False):
+        from types import SimpleNamespace
+        buttons,moves,closed=[],[],[]
+        fake=SimpleNamespace(move=lambda *p:moves.append(p),
+                             button=lambda *b:buttons.append(b),close=lambda:closed.append(True))
+        def run(action,*args,**kwargs):
+            if action=='info': return {'ok':True,'windows':[self.sample()]}
+            if action=='areas': return {'ok':True,'outputs':[{'area':{'x':0,'y':0,'width':1000,'height':800}}]}
+            if action=='pointer':
+                point=moves[-1] if moves and not changed_pointer else (11,12)
+                return {'ok':True,'pointer':dict(zip(('x','y'),point))}
+            if action=='at': return {'ok':True,'windows':[{'id':'other' if blocked else 'probe'}]}
+            self.fail('unexpected action '+action)
+        with patch.dict(sys.modules,{'input':SimpleNamespace(Input=lambda:fake)}), patch.object(window,'run',side_effect=run), patch.object(window.time,'sleep'):
+            with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+                window.drag_move(['id:probe','200','200','--grab','100','15','--no-raise'])
+        self.assertEqual(sum(down for _,down in buttons),0 if blocked or changed_pointer else 1)
+        self.assertEqual(buttons[-1],('left',False))
+        self.assertEqual(moves[-1],(11,12))
+        self.assertEqual(closed,[True])
+
+
 if __name__ == '__main__':
     unittest.main()

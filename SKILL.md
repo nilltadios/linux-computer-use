@@ -295,6 +295,35 @@ a size limit, size increments or desktop snapping prevented it. Inspect `to`,
 `window geometry` assigns frame dimensions directly and can bypass an app's
 minimum size; use pointer resizing to test the size a person can reach.
 
+To reposition a window by a real title-bar drag on KDE:
+
+```bash
+$L window drag-move id:WINDOW_ID 1900 300 --grab 200 20
+```
+
+The destination is the frame's absolute logical X/Y. `--grab GX GY` is relative
+to the current frame. First inspect a fresh window screenshot and choose a
+blank title-bar point or draggable title text. Keep away from header buttons,
+menus, search fields, tabs and resize borders. The command requires an explicit
+grab point because custom headers contain interactive controls; it does not
+guess or retry another point after a failed move.
+
+It requires exactly one normal, visible, unmaximized window, raises it by
+default (`--no-raise` preserves stacking), and verifies KWin's hit target before
+pressing. It crosses the drag threshold in small steps, checks the moving flag
+and unchanged size, then measures actual motion to correct the destination.
+The destination must fit at least 16 logical pixels inside one monitor's usable
+area to avoid edge tiling. The button is released and the pointer restored even
+on failure. Exit 0 means the target was reached within 1 px with unchanged size;
+exit 3 reports a constrained position or unexpected size/state change. Exit 1
+means a refusal or failed grab. Inspect the returned actual geometry and note.
+This command does not unmaximize windows or fall back to assigning geometry.
+
+`tests/test-drag-move.py MATCH --grab GX GY --output NEW_DIR` tests eight movement
+directions, a tiny drag and a no-op on an authorized test window, then restores
+its geometry. Add `--smoke` for tiny, near-edge and no-op checks. Run it with
+`uv run --python 3.15`; the script uses only the Python standard library.
+
 What each desktop can do beyond that:
 
 | | KDE | GNOME | COSMIC |

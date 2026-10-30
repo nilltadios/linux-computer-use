@@ -11,6 +11,8 @@ Usage:
   lcu window pointer                         # pointer position and output, and KWin's active output
   lcu window at X Y                          # KWin's hit test, including resize borders
   lcu window drag-resize MATCH W H [--edge EDGE] [--step PX] [--no-raise]
+  lcu window drag-move MATCH X Y --grab GX GY [--no-raise]
+                       # target frame origin; grab is a visually verified header point, relative to frame
   lcu window ACTION MATCH [ARGS]
   lcu window launch [--on OUTPUT] [--maximize|--fullscreen] [--match MATCH] -- CMD [ARGS]
 MATCH: id:{uuid} | class:PREFIX (Wayland app_id / desktop file name / X11 WM_CLASS,
@@ -109,6 +111,9 @@ try {
         // alone would identify the window behind a thin resize border instead.
         const x = +ARGS[0], y = +ARGS[1];
         out.windows = Array.from(workspace.windowAt({x, y})).filter(shown).map(info);
+    } else if (ACTION === "areas") {
+        out.outputs = workspace.screens.map(s => ({name: s.name,
+            area: rect(workspace.clientArea(KWin.MaximizeArea, s, workspace.currentDesktop))}));
     } else {
         let hit = wins.filter(matches);
         if (FIRST) hit = hit.slice(0, 1);
@@ -493,6 +498,151 @@ def drag_resize(argv):
     return 0 if not short else 3
 
 
+def drag_move(argv):
+    """drag-move MATCH X Y --grab GX GY [--no-raise]
+
+    Drag a visually verified, non-interactive header point to reposition one window.
+    X/Y are the target frame origin; GX/GY are relative to the current frame.
+    Keep the destination at least 16 px inside one output's usable area.
+    Exit 0: position reached and size preserved; 3: constrained target; 1: refused.
+    """
+    if argv == ["--help"]:
+        print(drag_move.__doc__)
+        return 0
+    pos, grab, no_raise = [], None, False
+    it = iter(argv)
+    for arg in it:
+        if arg == "--grab":
+            grab = [next(it, None), next(it, None)]
+        elif arg == "--no-raise":
+            no_raise = True
+        elif arg.startswith("--"):
+            _fail(f"unknown option {arg}")
+        else:
+            pos.append(arg)
+    if len(pos) != 3 or grab is None or None in grab:
+        _fail("drag-move needs MATCH X Y --grab GX GY; inspect the header before choosing the grab point")
+    try:
+        tx, ty, gx, gy = map(float, [*pos[1:], *grab])
+    except ValueError:
+        _fail("X, Y, GX and GY must be finite numbers")
+    if not all(math.isfinite(v) for v in (tx, ty, gx, gy)):
+        _fail("X, Y, GX and GY must be finite numbers")
+    res = run("info", pos[0])
+    if not res["ok"]:
+        _fail(res["error"])
+    if len(res["windows"]) != 1:
+        _fail("drag-move needs exactly one window; use its id")
+    original = res["windows"][0]
+    match = f"id:{original['id']}"
+    if not original["normal"] or any(original[k] for k in ("maximized", "minimized", "fullscreen")):
+        _fail("drag-move needs a normal, visible, unmaximized window", window=original)
+    header_height = original["client"]["y"] - original["y"] if original["decorated"] else 64
+    if not (6 <= gx <= original["width"] - 6 and 6 <= gy < header_height - 2):
+        _fail("--grab must be inside the header, away from borders; verify a blank point visually", window=original)
+    areas = run("areas")
+    if not areas["ok"]:
+        _fail(areas["error"])
+    def fits_position(x, y):
+        return any(x >= o["area"]["x"] + 16 and y >= o["area"]["y"] + 16 and
+                   x + original["width"] <= o["area"]["x"] + o["area"]["width"] - 16 and
+                   y + original["height"] <= o["area"]["y"] + o["area"]["height"] - 16
+                   for o in areas["outputs"])
+
+    if not fits_position(tx, ty):
+        _fail("destination must fit at least 16 px inside one output's usable area", window=original)
+    if max(abs(tx-original["x"]), abs(ty-original["y"])) < 1:
+        print(json.dumps({"ok": True, "changed": False, "window": original}, indent=1))
+        return 0
+
+    def current():
+        state = run("info", match)
+        if not state["ok"]:
+            _fail("target window disappeared")
+        return state["windows"][0]
+
+    def size_same(w):
+        return all(abs(w[k]-original[k]) < 1 for k in ("width", "height"))
+
+    if not no_raise:
+        raised = run("raise", match)
+        if not raised["ok"]:
+            _fail(raised["error"])
+        time.sleep(0.15)
+    w = current()
+    if any(abs(w[k]-original[k]) >= 1 for k in ("x", "y", "width", "height")):
+        _fail("window geometry changed before the drag; inspect it again", window=w)
+    dx, dy = tx-w["x"], ty-w["y"]
+    distance = max(abs(dx), abs(dy))
+    initial = (16*dx/distance, 16*dy/distance)
+    if not fits_position(w["x"]+initial[0], w["y"]+initial[1]):
+        # A tiny drag near a screen edge must not overshoot into edge tiling.
+        initial = next(((x, y) for x, y in ((16,0),(-16,0),(0,16),(0,-16),
+                                            (16,16),(-16,16),(16,-16),(-16,-16))
+                        if fits_position(w["x"]+x, w["y"]+y)), None)
+        if initial is None:
+            _fail("no safe initial drag fits inside a usable area; move the window away from screen edges first", window=w)
+    px, py = w["x"] + gx, w["y"] + gy
+    pointer = run("pointer")["pointer"]
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from input import Input
+    inp = Input()
+    started = False
+    try:
+        inp.move(px, py)
+        time.sleep(0.2)
+        hit = run("at", args=[px, py])
+        if not hit["ok"] or not hit["windows"] or hit["windows"][0]["id"] != original["id"]:
+            _fail("grab point does not hit the target; no button was pressed", window=current())
+        before_press = current()
+        actual_pointer = run("pointer")["pointer"]
+        if (any(abs(before_press[k]-w[k]) >= 1 for k in ("x", "y", "width", "height")) or
+                max(abs(actual_pointer["x"]-px), abs(actual_pointer["y"]-py)) >= 1):
+            _fail("window or pointer moved before the press; inspect again", window=before_press)
+        inp.button("left", True)
+        time.sleep(0.2)
+        # Cross the drag threshold before trusting the compositor's moving flag.
+        for i in range(1, 9):
+            cx, cy = px + initial[0]*i/8, py + initial[1]*i/8
+            inp.move(cx, cy)
+            time.sleep(0.04)
+        state = current()
+        started = state["moving"]
+        if not started or state["resizing"] or not size_same(state):
+            _fail("header grab did not start a move with unchanged size; no retry was made", window=state)
+        # Measure actual motion while held. CSD and SSD can use different grab offsets.
+        for _ in range(3):
+            state = current()
+            if not size_same(state) or state["resizing"]:
+                _fail("window size changed during the move", window=state)
+            dx, dy = tx-state["x"], ty-state["y"]
+            if max(abs(dx), abs(dy)) < 1:
+                break
+            ex, ey = cx + dx, cy + dy
+            count = max(1, math.ceil(max(abs(dx), abs(dy))/8))
+            for i in range(1, count+1):
+                inp.move(cx+(ex-cx)*i/count, cy+(ey-cy)*i/count)
+                time.sleep(0.025)
+            cx, cy = ex, ey
+            time.sleep(0.2)
+    finally:
+        try:
+            inp.button("left", False)
+            inp.move(pointer["x"], pointer["y"])
+        finally:
+            inp.close()
+    final = (wait_stable(match) or [current()])[0]
+    reached = max(abs(final["x"]-tx), abs(final["y"]-ty)) < 1
+    preserved = size_same(final)
+    ok = reached and preserved and not final["maximized"] and not final["fullscreen"]
+    print(json.dumps({"ok": ok, "changed": any(abs(final[k]-original[k]) >= 1 for k in ("x", "y")),
+                      "from": [original["x"], original["y"]], "to": [final["x"], final["y"]],
+                      "target": [tx, ty], "grab": [gx, gy], "move_started": started,
+                      "size_preserved": preserved, "window": final,
+                      "note": None if ok else "target not reached or size/state changed; inspect actual geometry (snapping may apply)"}, indent=1))
+    return 0 if ok else 3
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -501,6 +651,8 @@ def main(argv):
         return launch(argv[1:])
     if argv[0] == "drag-resize":
         return drag_resize(argv[1:])
+    if argv[0] == "drag-move":
+        return drag_move(argv[1:])
     first = "--first" in argv
     all_w = "--all" in argv
     argv = [a for a in argv if a not in ("--first", "--all")]
