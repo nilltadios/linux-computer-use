@@ -303,7 +303,9 @@ minimum size; use pointer resizing to test the size a person can reach.
 To reposition a window by a real title-bar drag on KDE:
 
 ```bash
-$L window drag-move id:WINDOW_ID 1900 300 --grab 200 20
+$L window drag-move id:WINDOW_ID 1900 300 --grab 200 20          # 0.4 s, the default
+$L window drag-move id:WINDOW_ID 1900 300 --grab 200 20 --fast   # 0.1 s
+$L window drag-move id:WINDOW_ID 1900 300 --grab 200 20 --slow   # 1 s (--duration MS for others)
 ```
 
 The destination is the frame's absolute logical X/Y. `--grab GX GY` is relative
@@ -315,8 +317,14 @@ guess or retry another point after a failed move.
 
 It requires exactly one normal, visible, unmaximized window, raises it by
 default (`--no-raise` preserves stacking), and verifies KWin's hit target before
-pressing. It crosses the drag threshold in small steps, checks the moving flag
-and unchanged size, then measures actual motion to correct the destination.
+pressing. It crosses the drag threshold in four small moves, checks the moving
+flag and unchanged size, then glides to the target, paced by the clock so the
+drag lasts the chosen time from press to release (`drag_seconds` in the JSON).
+The window misses the motion before its move starts, so the glide aims at the
+target plus that measured lag; a correction while still held fixes the rest
+(`corrections`). Speed does not affect accuracy: on 2026-10-30 every setting
+from a single jump to 8 px every 25 ms landed exactly, on one screen and
+across monitors with different scales.
 The destination must fit at least 16 logical pixels inside one monitor's usable
 area to avoid edge tiling. The button is released and the pointer restored even
 on failure. Exit 0 means the target was reached within 1 px with unchanged size;

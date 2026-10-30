@@ -11,7 +11,7 @@ Usage:
   lcu window pointer                         # pointer position and output, and KWin's active output
   lcu window at X Y                          # KWin's hit test, including resize borders
   lcu window drag-resize MATCH W H [--edge EDGE] [--step PX] [--no-raise]
-  lcu window drag-move MATCH X Y --grab GX GY [--no-raise]
+  lcu window drag-move MATCH X Y --grab GX GY [--fast|--slow|--duration MS] [--no-raise]
                        # target frame origin; grab is a visually verified header point, relative to frame
   lcu window ACTION MATCH [ARGS]
   lcu window launch [--on OUTPUT] [--maximize|--fullscreen] [--match MATCH] -- CMD [ARGS]
@@ -516,22 +516,38 @@ def _size_kept(before, after):
     return all(abs(after[k] - before[k]) < tolerance for k in ("width", "height"))
 
 
+# Press-to-release duration of a window drag (s): default 0.4, --fast 0.1, --slow 1.
+# Chosen 2026-10-30 after recorded tests; any speed from one jump to 8 px every 25 ms landed exactly.
+DRAG_SPEEDS = {"--fast": 0.1, "--normal": 0.4, "--slow": 1.0}
+
+
 def drag_move(argv):
-    """drag-move MATCH X Y --grab GX GY [--no-raise]
+    """drag-move MATCH X Y --grab GX GY [--fast|--slow|--duration MS] [--no-raise]
 
     Drag a visually verified, non-interactive header point to reposition one window.
     X/Y are the target frame origin; GX/GY are relative to the current frame.
     Keep the destination at least 16 px inside one output's usable area.
+    The drag lasts 0.4 s from press to release by default, 0.1 s with --fast, 1 s with --slow,
+    or MS ms with --duration (at least 50).
     Exit 0: position reached and size preserved; 3: constrained target; 1: refused.
     """
     if argv == ["--help"]:
         print(drag_move.__doc__)
         return 0
-    pos, grab, no_raise = [], None, False
+    pos, grab, no_raise, duration = [], None, False, DRAG_SPEEDS["--normal"]
     it = iter(argv)
     for arg in it:
         if arg == "--grab":
             grab = [next(it, None), next(it, None)]
+        elif arg in DRAG_SPEEDS:
+            duration = DRAG_SPEEDS[arg]
+        elif arg == "--duration":
+            try:
+                duration = float(next(it, "")) / 1000
+            except ValueError:
+                _fail("--duration needs a number of milliseconds")
+            if not math.isfinite(duration) or duration < 0.05:
+                _fail("--duration must be at least 50 ms")
         elif arg == "--no-raise":
             no_raise = True
         elif arg.startswith("--"):
@@ -618,17 +634,35 @@ def drag_move(argv):
                 max(abs(actual_pointer["x"]-px), abs(actual_pointer["y"]-py)) >= 1):
             _fail("window or pointer moved before the press; inspect again", window=before_press)
         inp.button("left", True)
-        time.sleep(0.2)
-        # Cross the drag threshold before trusting the compositor's moving flag.
-        for i in range(1, 9):
-            cx, cy = px + initial[0]*i/8, py + initial[1]*i/8
+        t0 = time.monotonic()
+        time.sleep(0.01)
+        # Cross the drag threshold in small moves, then confirm the compositor's moving flag
+        # before the long glide. The motion before the move starts is lost (the window lags
+        # the pointer by it), so the glide aims at the target plus the measured lag.
+        for i in range(1, 5):
+            cx, cy = px + initial[0]*i/4, py + initial[1]*i/4
             inp.move(cx, cy)
-            time.sleep(0.04)
-        state = current()
+            time.sleep(0.005)
+        while True:
+            state = current()
+            if state["moving"] or time.monotonic() - t0 > 0.5:
+                break
+            time.sleep(0.005)
         started = state["moving"]
         if not started or state["resizing"] or not size_same(state):
             _fail("header grab did not start a move with unchanged size; no retry was made", window=state)
-        # Measure actual motion while held. CSD and SSD can use different grab offsets.
+        ex, ey = cx + tx - state["x"], cy + ty - state["y"]
+        sx, sy, s0 = cx, cy, time.monotonic()
+        span = max(0.0, t0 + duration - 0.03 - s0)  # 30 ms left for the compositor to catch up
+        f = 0.0
+        while f < 1:  # each move goes where the pointer should be now, so slow moves cannot add up
+            time.sleep(0.004)
+            f = min(1.0, (time.monotonic() - s0) / span) if span else 1.0
+            cx, cy = sx + (ex - sx) * f, sy + (ey - sy) * f
+            inp.move(cx, cy)
+        time.sleep(max(0.0, t0 + duration - time.monotonic()))
+        corrections = 0
+        # Correct while still held, in case the window did not follow exactly.
         for _ in range(3):
             state = current()
             if not size_same(state) or state["resizing"]:
@@ -636,19 +670,18 @@ def drag_move(argv):
             dx, dy = tx-state["x"], ty-state["y"]
             if max(abs(dx), abs(dy)) < 1:
                 break
-            ex, ey = cx + dx, cy + dy
-            count = max(1, math.ceil(max(abs(dx), abs(dy))/8))
-            for i in range(1, count+1):
-                inp.move(cx+(ex-cx)*i/count, cy+(ey-cy)*i/count)
-                time.sleep(0.025)
-            cx, cy = ex, ey
-            time.sleep(0.2)
+            cx, cy = cx + dx, cy + dy
+            inp.move(cx, cy)
+            time.sleep(0.03)
+            corrections += 1
     finally:
         try:
+            released = time.monotonic()
             inp.button("left", False)
             inp.move(pointer["x"], pointer["y"])
         finally:
             inp.close()
+    held = released - t0 if started else None
     final = (wait_stable(match) or [current()])[0]
     reached = max(abs(final["x"]-tx), abs(final["y"]-ty)) < 1
     preserved = size_same(final)
@@ -656,7 +689,7 @@ def drag_move(argv):
     print(json.dumps({"ok": ok, "changed": any(abs(final[k]-original[k]) >= 1 for k in ("x", "y")),
                       "from": [original["x"], original["y"]], "to": [final["x"], final["y"]],
                       "target": [tx, ty], "grab": [gx, gy], "move_started": started,
-                      "size_preserved": preserved, "window": final,
+                      "size_preserved": preserved, "drag_seconds": held and round(held, 3), "corrections": corrections if started else None, "window": final,
                       "note": None if ok else "target not reached or size/state changed; inspect actual geometry (snapping may apply)"}, indent=1))
     return 0 if ok else 3
 

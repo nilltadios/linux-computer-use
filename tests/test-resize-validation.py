@@ -117,7 +117,10 @@ class MoveValidation(unittest.TestCase):
         for args in [[], ['id:a','100','100'], ['id:a','100','100','--grab','10'],
                      ['id:a','nan','100','--grab','10','10'],
                      ['id:a','100','100','--grab','10','inf'],
-                     ['id:a','100','100','--grab','10','10','--typo']]:
+                     ['id:a','100','100','--grab','10','10','--typo'],
+                     ['id:a','100','100','--grab','10','10','--duration','10'],
+                     ['id:a','100','100','--grab','10','10','--duration','fast'],
+                     ['id:a','100','100','--grab','10','10','--duration','nan']]:
             with self.subTest(args=args), patch.object(window,'run',side_effect=AssertionError('desktop contacted')):
                 with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
                     window.drag_move(args)

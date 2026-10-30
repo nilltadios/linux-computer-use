@@ -373,3 +373,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Dragging a 665.3x705.3 libcosmic window from DP-1 (scale 1.5) to eDP-1 (scale 1.25) reached the target but exited 1 'window size changed during the move': the size became 666.4x706.4. Logical size is whole physical pixels over the scale, so it shifts by about a pixel when the scale changes. Fixed: the size check allows 2 px when the output changed (1 px otherwise).
 - Do: Nothing extra; if a cross-monitor move still reports a size change, compare the change with 2/scale before treating it as a resize.
 - Evidence: drag-move DP-1 -> eDP-1: target reached, 665.33x705.33 -> 666.4x706.4, exit 1 before the fix; tests/test-resize-validation.py test_size_tolerance_across_monitor_scales; after the fix 700x700 window DP-1 <-> eDP-1 both exit 0
+
+### 2026-10-30 · better · drag-move speed: any glide speed lands exactly; default is now 0.4 s press to release
+- Status: promoted
+- Desktop: kde
+- Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
+- What: drag-move used 8 px moves 25 ms apart plus fixed pauses: about 2 s overhead and 9.5 s for 1620 px. Benchmarks on a libcosmic window (same screen and across monitors with scales 1.25/1.5): step 8-2000 px, interval 0-25 ms, all exit 0 with 0 px error. A plain timed drag without the threshold step lands one pointer step short (the client starts its move on the first motion), and fixed sleeps overrun (50 moves at 20 ms took 1.5 s). KWin script queries take about 4 ms.
+- Do: Use the default (0.4 s), --fast (0.1 s) or --slow (1 s); the glide is clock-paced and aims at target + measured lag. For hand-built timed drags with input, nudge 4 px first and shift the end point by the nudge, and pace moves by the clock, not fixed sleeps.
+- Evidence: Warehouse COSMIC 700x700, eDP-1 <-> DP-1: --fast 0.103-0.105 s, default 0.404 s, --slow 1.005 s, all landed exactly, corrections 0; earlier raw input drags: 0.1 s -> 77,16 px short, 1 s (50x20 ms) -> 14,3 px short and 1.5 s long
