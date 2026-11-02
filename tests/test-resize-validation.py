@@ -51,7 +51,7 @@ class ResizeValidation(unittest.TestCase):
             for end in [(20, 17), (-17, -20), (0, 0)]:
                 moves, buttons = [], []
                 fake = input_module.Input.__new__(input_module.Input)
-                fake.move = lambda x,y: moves.append((x,y))
+                fake.move = lambda x,y,settle=False: moves.append((x,y))
                 fake.button = lambda name,down: buttons.append((name,down))
                 with patch.object(input_module.time, 'sleep'):
                     fake.drag(0, 0, *end, step=step)

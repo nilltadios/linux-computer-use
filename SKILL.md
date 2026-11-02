@@ -28,9 +28,10 @@ $L check           # every requirement for this desktop; changes nothing; exit 0
 | one-time setup | `capture record-setup` for video | `setup` (extension, a11y switch) | `setup` (Remote desktop dialog) |
 
 Checked on KDE: Fedora 44, KWin 6.7.5, libei 1.6.0, Spectacle 6.7.5 (2026-10-30, all
-tests). GNOME (CentOS Stream 10, GNOME Shell 49.5, Mutter 49.4) and COSMIC (CachyOS,
-cosmic-comp 1.10.0) were checked on 2026-10-29 with the earlier per-desktop skills
-whose code this one carries; the merged `lcu` has not yet run on them (see Verifying).
+tests). GNOME: CentOS Stream 10, GNOME Shell 49.5, Mutter 49.4, libei 1.5.0
+(2026-11-02, all tests under `lcu`). COSMIC (CachyOS, cosmic-comp 1.10.0) was checked
+on 2026-10-29 with the earlier per-desktop skill whose code this one carries; the
+merged `lcu` has not yet run there (see Verifying).
 
 Detection order: `lcu --desktop kde|gnome|cosmic` or `LCU_DESKTOP`, then
 `XDG_CURRENT_DESKTOP` confirmed by the compositor's D-Bus name, then the D-Bus names
@@ -167,6 +168,10 @@ agent's own chat app because the dialog was not where an earlier listing said. S
   through the GUI (purchases, sending messages, passwords, deleting).
 - Full-desktop screenshots contain private windows; look only at what the task
   needs and prefer `--window`/`--area` crops.
+- GNOME has no clipboard protocol for background tools, so `wl-paste` can take focus
+  from the window you are driving, and it hangs while a keep-above window has focus.
+  `paste` puts focus back before ctrl+v and refuses (pastes nothing) if it cannot;
+  never run bare `wl-paste` between your focus check and your keys.
 - `paste` replaces the clipboard for a moment and then restores it; say so in your
   report. Do not use bare `wl-copy` for this.
 - GNOME shows its screen-sharing/remote-desktop indicator while input or a
@@ -515,16 +520,17 @@ per-desktop skills (`~/.local/state/claude-kde-capture/`,
 
 | Test | Checks | Expected | Last pass |
 |---|---|---|---|
-| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30 |
-| `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-10-30 |
-| `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-10-30 |
-| `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-10-30 |
-| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-10-30 |
+| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-02 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen
-window on MONITOR and has seen the pointer move over it. On GNOME and COSMIC the
-same tests passed with the earlier per-desktop skills on 2026-10-29; run them under
-`lcu` there before relying on the merged code, and record what breaks.
+window on MONITOR and has seen the pointer move over it, and checks focus again just
+before the first click. On COSMIC the same tests passed with the earlier per-desktop
+skill on 2026-10-29; run them under `lcu` there before relying on the merged code, and
+record what breaks.
 
 ## Prior art
 

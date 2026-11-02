@@ -413,3 +413,27 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: drag-resize and drag-move are KDE-only. On GNOME a hand-built drag works: for a libadwaita/GTK4 window (CSD, buffer 25 px larger than the frame on each side) pressing 5 px outside the visible frame edge or corner, then 6 px steps, resized it exactly on all 8 handles; a press on a blank header spot and a 20-step glide moved it exactly with the size unchanged.
 - Do: Activate the window, press 5 px outside the visible frame (window info x/y/width/height; the buffer holds the shadow), lcu input move X Y down left rmove 2 2 then rmove steps, move to the end point, up left; check window info. For moves, pick a blank header spot from a fresh screenshot.
 - Evidence: Gear Lever 700x700: each of 8 handles shrank by exactly 60 px and grew back to 700x700; header drag (-200,+120) moved 1801,29 -> 1601,149 and back, size unchanged
+
+### 2026-11-02 · broken · GNOME: buttons and wheel of a new input session are dropped until it has moved
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Mutter dropped every click and wheel detent sent as the first actions of an lcu input call (no move first); waiting 100-300 ms did not help, a zero rmove did. Keys were unaffected. The old per-desktop test passed only because of timing. Fixed in input.py: on GNOME a session that has not moved sends rmove 0 0 before its first button or scroll.
+- Do: Nothing; input.py does it. If clicks vanish on another compositor, test 'click left' against 'rmove 0 0 click left' on the probe.
+- Evidence: probe: 'click left', 'sleep 300 click left' -> 0 presses; 'rmove 0 0 click left' -> 1; bare 'scroll 1' -> 0 wheel; tests/test-input.sh 14 ok after the fix
+
+### 2026-11-02 · broken · libcosmic apps ignore the pointer-enter position; a single jump misses their resize border
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: lcu input move sent one absolute motion; jumping into a libcosmic window (COSMIC Authenticator on GNOME) arrives as wl_pointer.enter only, which the app ignores, so a press right after hit no resize border (edges did nothing at any offset) while GTK windows resized. Any second motion fixes it, even to the same point. Fixed: the CLI move action and the start of drag repeat the motion once (move(settle=True)). Likely on KDE too; untested there.
+- Do: Nothing; input.py does it. In custom drags built from Input.move, pass settle=True for the press point.
+- Evidence: 'move X Y down left ...' -> 962x664 unchanged; 'move X Y move X Y down left ...' -> 902x664; after the fix all 8 edges/corners shrank 60 px and grew back exactly
+
+### 2026-11-02 · broken · GNOME: wl-paste takes focus, and hangs while a keep-above window is focused
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: Reading the clipboard with wl-paste moved focus from a full-screen keep-above probe to the window below, so the keys that followed went there (paste and the input test's own clipboard read). With a keep-above window focused, wl-paste --list-types never returned (5 s timeout); windowed or full-screen without keep-above it answered in 20 ms. Fixed: paste restores focus before ctrl+v and refuses if it cannot; test-input.sh reads the clipboard before its safety checks and no longer sets keep-above on GNOME.
+- Do: Do not run wl-paste between a focus check and input; check focus again after it. Use lcu input paste, which handles this.
+- Evidence: active before wl-paste: probe, after: the window below; wl-paste --list-types: windowed rc 0 in 0.02 s, keep-above rc 124 after 5 s, fullscreen-only rc 0

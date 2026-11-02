@@ -212,6 +212,10 @@ class Input:
             sys.exit("ei_setup_backend_fd failed")
         self.devices, self.seq = [], 1
         self._wait_for_devices()
+        # Mutter drops buttons and wheel from a new session until it has sent a motion
+        # (waiting does not help); a zero relative motion first fixes it. GNOME only.
+        self.unmoved = kind == "mutter"
+        self.kind = kind
 
     def _events(self, timeout):
         r, _, _ = select.select([ei.ei_get_fd(self.ctx)], [], [], timeout)
@@ -260,17 +264,28 @@ class Input:
         time.sleep(pause)
 
     # actions
-    def move(self, x, y):
+    def move(self, x, y, settle=False):
+        # settle: repeat the motion in a second frame. A jump into a window arrives as
+        # wl_pointer.enter alone; libcosmic apps on GNOME ignore the enter position, so a
+        # press right after it misses their resize border. A real mouse always sends more.
         d = self.dev(CAP_POINTER_ABSOLUTE)
-        ei.ei_device_pointer_motion_absolute(d, float(x), float(y))
-        self.frame(d)
+        self.unmoved = False
+        for _ in range(2 if settle else 1):
+            ei.ei_device_pointer_motion_absolute(d, float(x), float(y))
+            self.frame(d)
 
     def rmove(self, dx, dy):
         d = self.dev(CAP_POINTER)
+        self.unmoved = False
         ei.ei_device_pointer_motion(d, float(dx), float(dy))
         self.frame(d)
 
+    def _prime(self):
+        if getattr(self, "unmoved", False):
+            self.rmove(0, 0)
+
     def button(self, name, down):
+        self._prime()
         d = self.dev(CAP_BUTTON)
         ei.ei_device_button_button(d, BUTTONS.get(name, None) or int(name, 0), down)
         self.frame(d)
@@ -291,7 +306,7 @@ class Input:
             raise ValueError("drag step must be a finite positive number")
         dist = max(abs(x2 - x1), abs(y2 - y1), 1)
         steps = math.ceil(dist / step) if step else max(20, round(dist / 40))
-        self.move(x1, y1)
+        self.move(x1, y1, settle=True)
         self.button(button, True)
         time.sleep(0.08)
         if step is None:
@@ -311,6 +326,7 @@ class Input:
         self.button(button, False)
 
     def scroll(self, dy, dx=0):
+        self._prime()
         d = self.dev(CAP_SCROLL)
         step_y = 1 if dy > 0 else -1
         step_x = 1 if dx > 0 else -1
@@ -353,20 +369,43 @@ class Input:
             r = subprocess.run(["wl-copy"] + (["--type", mime] if mime else []), input=data, timeout=10,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return r.returncode == 0
+        # GNOME has no data-control protocol: wl-paste maps a surface for a moment to read
+        # the clipboard, and focus does not always come back (a full-screen window lost it
+        # to the one below). Note the focused window and put it back before the keys.
+        def focused():
+            if self.kind != "mutter":
+                return None
+            w = lcu_env.run_json("window", "active", check=False)[1]
+            return w[0]["id"] if isinstance(w, list) and w else None
+
+        def refocus(wid):
+            if wid is None or focused() == wid:
+                return True
+            lcu_env.run_json("window", "activate", f"id:{wid}", check=False)
+            time.sleep(0.3)
+            return focused() == wid
+        target = focused()
+        saved = None
         try:
-            types = subprocess.run(["wl-paste", "--list-types"], capture_output=True, timeout=10).stdout.decode().split()
+            types = subprocess.run(["wl-paste", "--list-types"], capture_output=True, timeout=5).stdout.decode().split()
+            if types:
+                # prefer the plain-text form; otherwise the first offered type (an image...)
+                mime = next((t for t in types if t in ("text/plain;charset=utf-8", "UTF8_STRING")), types[0])
+                r = subprocess.run(["wl-paste", "--no-newline", "--type", mime], capture_output=True, timeout=5)
+                saved = (mime, r.stdout) if r.returncode == 0 else None
         except FileNotFoundError:
             sys.exit("paste needs wl-clipboard (wl-copy, wl-paste)")
-        saved = None
-        if types:
-            # prefer the plain-text form; otherwise the first offered type (an image...)
-            mime = next((t for t in types if t in ("text/plain;charset=utf-8", "UTF8_STRING")), types[0])
-            r = subprocess.run(["wl-paste", "--no-newline", "--type", mime], capture_output=True, timeout=10)
-            saved = (mime, r.stdout) if r.returncode == 0 else None
+        except subprocess.TimeoutExpired:
+            # GNOME: wl-paste waits forever while a keep-above window has focus
+            refocus(target)
+            sys.exit("wl-paste did not answer, so the clipboard could not be saved; nothing was pasted "
+                     "(GNOME: a keep-above window has focus; turn keep-above off, or use `type`)")
         try:
             if not copy(text.encode()):
                 sys.exit("wl-copy failed")
             time.sleep(0.15)
+            if not refocus(target):
+                sys.exit("focus moved away while using the clipboard and could not be put back; nothing was pasted")
             self.combo(combo)
             time.sleep(0.4)  # apps read the clipboard asynchronously after the key
         finally:
@@ -374,6 +413,7 @@ class Input:
                 copy(saved[1], saved[0])
             else:
                 subprocess.run(["wl-copy", "--clear"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            refocus(target)
         print(f"pasted {len(text)} characters; clipboard " + (f"restored ({saved[0]}, {len(saved[1])} bytes)"
                                                              if saved else "was empty and is cleared again"),
               file=sys.stderr)
@@ -432,7 +472,7 @@ def main(argv):
         while args:
             a = args.pop(0)
             if a == "move":
-                inp.move(num(), num())
+                inp.move(num(), num(), settle=True)
             elif a == "rmove":
                 inp.rmove(num(), num())
             elif a == "click":

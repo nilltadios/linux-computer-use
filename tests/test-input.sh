@@ -10,12 +10,15 @@ mon="${1:-$("$L" capture screens | jq -r 'max_by(.x).name')}"; out="${2:-$(mktem
 desk=$("$L" detect | jq -r .desktop); M=class:org.lcu.InputProbe
 read -r gx gy gw gh < <("$L" capture screens | jq -r --arg m "$mon" '.[]|select(.name==$m)|"\(.x) \(.y) \(.width) \(.height)"')
 cx=$(( ${gx%.*} + ${gw%.*}/2 )); cy=$(( ${gy%.*} + ${gh%.*}/2 ))
+# Read the clipboard before the safety checks: on GNOME wl-paste can take focus.
+clip_before=$(wl-paste --no-newline 2>/dev/null | sha256sum)
 $PY "$here/tests/input_probe.py" "$log" 40 --windowed >"$out/probe.out" 2>&1 &
 probe=$!
 abort() { echo "ABORT: $*"; kill $probe 2>/dev/null; exit 2; }
 "$L" window wait-stable $M >/dev/null || abort "probe window not found"
 "$L" window move-to $M "$mon" >/dev/null || abort "could not move the probe to $mon"
-[[ $desk != cosmic ]] && "$L" window keep-above $M >/dev/null
+# not on GNOME: wl-paste hangs while a keep-above window has focus (paste would fail)
+[[ $desk == kde ]] && "$L" window keep-above $M >/dev/null
 "$L" window fullscreen $M >/dev/null
 "$L" window activate $M >/dev/null
 sleep 0.8
@@ -27,7 +30,7 @@ $PY -c "
 import json,sys; ev=[json.loads(l) for l in open('$log')]
 sys.exit(0 if any(e['ev']=='motion' and e['t']>=$mark-0.05 for e in ev) else 1)" \
     || abort "probe saw no pointer motion: something else is under the pointer"
-clip_before=$(wl-paste --no-newline 2>/dev/null | sha256sum)
+"$L" window active | jq -e '.[0].class|ascii_downcase|startswith("org.lcu.inputprobe")' >/dev/null || abort "probe lost focus before the input"
 "$L" input click left sleep 150 click right sleep 300 key escape sleep 150 click left 2 sleep 150 \
     keydown shift click left keyup shift sleep 150 keydown ctrl click left keyup ctrl sleep 150 \
     scroll 2 scroll -1 sleep 150 drag $((cx-200)) $((cy-100)) $((cx+200)) $((cy+100)) sleep 150 \
