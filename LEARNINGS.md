@@ -405,3 +405,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: A right-click near a monitor's bottom-right edge in LibreWolf opened the menu up and to the left of the pointer, so a crop below the pointer missed it. window list --all listed the menu as a librewolf window with an empty title and its exact geometry (942,255 357x381); OCR inside that area found the items.
 - Do: After right-clicking, run window list --all, take the new untitled popup of that app, crop and OCR inside its geometry, and click an item whose match has alone: true (Copy vs Copy Link to Highlight, Paste vs Paste Without Formatting).
 - Evidence: right-click at 1300,637 -> popup librewolf '' 942,255 357x381; ocr Copy in that area -> [973,278] alone true and [973,361] alone false; click -> clipboard held the selected text
+
+### 2026-11-02 · new · GNOME: resize and move by pointer drag work with plain input down/move/up; CSD resize zone is in the shadow
+- Status: active
+- Desktop: gnome
+- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
+- What: drag-resize and drag-move are KDE-only. On GNOME a hand-built drag works: for a libadwaita/GTK4 window (CSD, buffer 25 px larger than the frame on each side) pressing 5 px outside the visible frame edge or corner, then 6 px steps, resized it exactly on all 8 handles; a press on a blank header spot and a 20-step glide moved it exactly with the size unchanged.
+- Do: Activate the window, press 5 px outside the visible frame (window info x/y/width/height; the buffer holds the shadow), lcu input move X Y down left rmove 2 2 then rmove steps, move to the end point, up left; check window info. For moves, pick a blank header spot from a fresh screenshot.
+- Evidence: Gear Lever 700x700: each of 8 handles shrank by exactly 60 px and grew back to 700x700; header drag (-200,+120) moved 1801,29 -> 1601,149 and back, size unchanged
