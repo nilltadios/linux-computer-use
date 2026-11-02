@@ -338,6 +338,17 @@ exit 3 reports a constrained position or unexpected size/state change. Exit 1
 means a refusal or failed grab. Inspect the returned actual geometry and note.
 This command does not unmaximize windows or fall back to assigning geometry.
 
+**COSMIC** has the same `window drag-move` and `window drag-resize` (same arguments,
+speeds, JSON and exit codes; no `--no-raise`, and resizing always presses 3 px
+outside the frame, where cosmic-comp's resize zone is for every toolkit). cosmic-comp
+has no hit test and reports no geometry while a window is held, so nothing is checked
+or corrected during the drag: both raise the window, refuse a press on a panel
+(bands read from cosmic-panel's config) or off the outputs, and verify the result
+after the release. A missed header grab is a drag inside the app (text selection,
+or a file drag in a file manager), so choose `--grab` from a fresh screenshot even
+more carefully than on KDE. The window follows the pointer without lag, so moves
+land exactly without corrections.
+
 `tests/test-drag-move.py MATCH --grab GX GY --output NEW_DIR` tests eight movement
 directions, a tiny drag and a no-op on an authorized test window, then restores
 its geometry. Add `--smoke` for tiny, near-edge and no-op checks. Run it with
@@ -347,7 +358,8 @@ What each desktop can do beyond that:
 
 | | KDE | GNOME | COSMIC |
 |---|---|---|---|
-| `geometry X Y W H`, `keep-above`/`no-keep-above`, `raise` (no focus) | yes | yes | no protocol: exits with a reason; use maximize, `move-to`, tiling keys or drag the header |
+| `geometry X Y W H`, `keep-above`/`no-keep-above`, `raise` (no focus) | yes | yes | no protocol: exits with a reason; use maximize, `move-to`, tiling keys or `drag-move`/`drag-resize` |
+| `drag-move`, `drag-resize` (real pointer drags) | yes, verified during the drag | build them from `input` | yes, verified after the release |
 | `sticky`/`unsticky` (all workspaces), `workspaces` | - | - | yes |
 | `pointer` (pointer position, KWin's active output) | yes | - | - |
 | window `x/y/width/height` | frame; `client` = inside | visible frame, no CSD shadow (`buffer` has it) | visible geometry |
@@ -519,7 +531,7 @@ COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
 
 | Test | Checks | Expected | Last pass |
 |---|---|---|---|
-| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30, GNOME 2026-11-02, COSMIC 2026-11-02 |
 | `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-10-30, GNOME 2026-11-02 |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-10-30, GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-10-30, GNOME 2026-11-02 |

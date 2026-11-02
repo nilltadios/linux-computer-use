@@ -26,9 +26,12 @@ ACTIONS:
   move-to OUTPUT      move to the active workspace of OUTPUT (e.g. DP-1, eDP-1)
   close               ask the window to close (like its X button; the app may prompt
                       to save). Never use on the user's apps without asking.
+  drag-move MATCH X Y --grab GX GY [--fast|--slow|--duration MS]
+                      move it by a real header drag so its frame lands at X,Y (0.4 s)
+  drag-resize MATCH W H [--edge EDGE] [--left] [--top] [--step PX]
+                      resize it by dragging an edge or corner with the pointer
 cosmic-comp has no protocol request to move a window to x,y, resize it or keep it
-above others; use keyboard shortcuts (super+arrows) or drag its header with
-`lcu input`.
+above others; the two drag commands do it with the pointer, like a person.
 
 launch starts CMD detached, waits (20 s) for its new window and prints it. --on moves it
 to OUTPUT if it opened elsewhere; --maximize/--fullscreen apply after it appears.
@@ -155,6 +158,9 @@ def main(argv):
             sys.exit(f"{match} did not appear or settle within 10 s")
         print(json.dumps([public(w) for w in hits], indent=1))
         return 0
+    if action in ("drag-move", "drag-resize"):
+        import drag
+        return (drag.drag_move if action == "drag-move" else drag.drag_resize)(argv[1:])
     if action in ("geometry", "keep-above", "no-keep-above", "raise"):
         sys.exit(f"{action}: cosmic-comp offers no protocol for this; see --help")
     known = ("activate", "minimize", "unminimize", "maximize", "unmaximize", "fullscreen", "unfullscreen",

@@ -437,3 +437,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Reading the clipboard with wl-paste moved focus from a full-screen keep-above probe to the window below, so the keys that followed went there (paste and the input test's own clipboard read). With a keep-above window focused, wl-paste --list-types never returned (5 s timeout); windowed or full-screen without keep-above it answered in 20 ms. Fixed: paste restores focus before ctrl+v and refuses if it cannot; test-input.sh reads the clipboard before its safety checks and no longer sets keep-above on GNOME.
 - Do: Do not run wl-paste between a focus check and input; check focus again after it. Use lcu input paste, which handles this.
 - Evidence: active before wl-paste: probe, after: the window below; wl-paste --list-types: windowed rc 0 in 0.02 s, keep-above rc 124 after 5 s, fullscreen-only rc 0
+
+### 2026-11-02 · new · COSMIC: window drag-move and drag-resize by pointer; no geometry while a window is held
+- Status: active
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
+- What: cosmic-comp sends no geometry for a window while a move or resize grab holds it: an open toplevel-info connection gets no events until the release, and a new one sees x/y null (after waiting its 0.6 s geometry timeout). An idle desktop can also lag geometry past a short timeout, so null is not a usable moving flag. The window follows the pointer without lag, and its resize zone reaches 3 px outside the frame for SSD (Qt), GTK and libcosmic windows alike.
+- Do: Use lcu window drag-move / drag-resize; they release on schedule and verify after. Do not poll lcu window info during a held drag (each call then takes ~0.7 s). Keep move targets 16 px inside the usable area: a pointer near the top edge snapped a window to the top half.
+- Evidence: Dolphin (Flatpak, SSD), COSMIC Terminal, Gear Lever on DP-1 (scale 1.5): 8 edges/corners each shrank 60 px and grew back exactly (24/24); 12 header moves incl. DP-1 <-> eDP-1 (scale 1.25) landed exactly in 0.40 s, --fast 0.1 s, --slow 1.0 s; panel size M measured 56 logical px on both monitors
