@@ -17,15 +17,15 @@ implementation.
 It follows the open Agent Skills layout (a folder with `SKILL.md`, `name` and
 `description` front matter, and its own scripts), and everything it does is plain
 shell commands, so it works with any agent that loads such skills and can run a
-shell: Claude Code, Codex, Gemini CLI, Antigravity and others. Nothing in it calls
+shell: Codex, Gemini CLI, Antigravity and others. Nothing in it calls
 one vendor's tools.
 
 ## Install
 
 Clone it into the skills folder your agent reads; see your agent's documentation
 for the folder. Common ones: `~/.agents/skills/` (shared by several agents, Codex
-among them), `~/.claude/skills/` (Claude Code), `~/.codex/skills/` (Codex),
-`~/.gemini/config/skills/` (Antigravity). For several agents, keep one clone and
+among them), `~/.codex/skills/` (Codex), `~/.gemini/config/skills/`
+(Antigravity). For several agents, keep one clone and
 symlink it into the others' folders, so they share one lessons log.
 
 ```bash

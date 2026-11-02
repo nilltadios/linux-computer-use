@@ -1,7 +1,7 @@
 // D-Bus bridge for gnome-computer-use: what KWin scripting gives on KDE, GNOME Shell only
 // gives from inside the shell (Introspect.GetWindows, Shell.Screenshot and Eval refuse
 // outside callers). Exported on the shell's own connection:
-//   bus name org.gnome.Shell, object /org/claude/ComputerUse, interface org.claude.ComputerUse
+//   bus name org.gnome.Shell, object /org/lcu/ComputerUse, interface org.lcu.ComputerUse
 // Windows(request JSON) -> result JSON; Screenshot(path, pointer) -> result JSON (whole
 // desktop at the largest monitor scale); ScreenshotArea(path, x, y, w, h, scale, pointer) -> result
 // JSON (one logical area rendered at the given scale, e.g. its monitor's own, so it is not
@@ -21,7 +21,7 @@ Gio._promisify(Shell.Screenshot.prototype, 'screenshot', 'screenshot_finish');
 Gio._promisify(Shell.Screenshot, 'composite_to_stream', 'composite_to_stream_finish');
 
 const VERSION = 3;
-const IFACE = `<node><interface name="org.claude.ComputerUse">
+const IFACE = `<node><interface name="org.lcu.ComputerUse">
   <method name="Windows"><arg type="s" direction="in" name="request"/><arg type="s" direction="out" name="result"/></method>
   <method name="Screenshot"><arg type="s" direction="in" name="path"/><arg type="b" direction="in" name="pointer"/>
     <arg type="s" direction="out" name="result"/></method>
@@ -216,7 +216,7 @@ class Bridge {
 export default class ComputerUseBridge extends Extension {
     enable() {
         this._dbus = Gio.DBusExportedObject.wrapJSObject(IFACE, new Bridge(this.path));
-        this._dbus.export(Gio.DBus.session, '/org/claude/ComputerUse');
+        this._dbus.export(Gio.DBus.session, '/org/lcu/ComputerUse');
     }
 
     disable() {

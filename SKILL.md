@@ -8,8 +8,8 @@ description: Control this user's Linux Wayland desktop (KDE Plasma 6, GNOME or C
 Everything works as the desktop user: no root, no uinput, no ydotool, nothing from
 pip. One command, `lcu`, detects the desktop and drives it through that
 compositor's own interfaces; the commands, options and JSON are the same everywhere.
-It is plain shell commands, so any agent that can run a shell (Claude Code, Codex,
-Gemini CLI, Antigravity...) uses it the same way.
+It is plain shell commands, so any agent that can run a shell (Codex, Gemini CLI,
+Antigravity...) uses it the same way.
 
 ```bash
 SKILL_DIR=<the folder that holds this SKILL.md>   # e.g. ~/.agents/skills/linux-computer-use
@@ -420,7 +420,7 @@ Order of preference:
   toolkit-accessibility true`; GNOME's `$L setup` sets it). GTK4 apps register by
   themselves; GTK3, Qt and Electron apps started before it was on expose nothing
   until restarted. Never restart the user's apps for this; fall back to OCR.
-- Electron apps (VS Code/VSCodium, Slack, the Claude or ChatGPT desktop apps...) need
+- Electron apps (VS Code/VSCodium, Slack, Discord, Signal...) need
   `--force-renderer-accessibility` for the tree inside the window. Add it only when
   you start such an app yourself and need the tree: it also switches VS
   Code/VSCodium into Screen Reader Optimized mode (mention it in your report).
@@ -498,8 +498,8 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   `$L capture record-setup` (above). Revoke: delete
   `~/.local/state/linux-computer-use/screencast-monitors.token`.
 - **GNOME:** GNOME refuses window lists, screenshots and `Eval` to outside
-  processes, so `scripts/gnome/extension/computer-use@claude.local` (~200 lines)
-  does them inside the shell and exports `org.claude.ComputerUse` on
+  processes, so `scripts/gnome/extension/computer-use@lcu.local` (~200 lines)
+  does them inside the shell and exports `org.lcu.ComputerUse` on
   `org.gnome.Shell` (any session-bus process can call it, the same exposure Mutter's
   RemoteDesktop/ScreenCast APIs already have; Flatpak apps cannot). `$L setup`
   installs it, adds it to `enabled-extensions` and turns accessibility on; it is
@@ -507,14 +507,13 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   (drives Looking Glass through Alt+F2 after confirming that UI by accessibility;
   takes the keyboard for ~5 s; needs `org.gnome.shell development-tools` or
   `--allow-devtools`; run it only when the user agreed or is away; `--force`
-  reloads changed code). Undo: `gnome-extensions uninstall computer-use@claude.local`.
+  reloads changed code). Undo: `gnome-extensions uninstall computer-use@lcu.local`.
 - **COSMIC:** `$L setup` shows the Remote desktop dialog once (input). cosmic-comp
   refuses its own EIS method to everyone but its portal, so there is no way around
   that dialog. `$L input --forget` deletes the grant. Nothing else asks.
 
-Grants live in `~/.local/state/linux-computer-use/`; grants saved by the earlier
-per-desktop skills (`~/.local/state/claude-kde-capture/`,
-`~/.local/state/cosmic-computer-use/`) are picked up once.
+Grants live in `~/.local/state/linux-computer-use/`; a grant saved by the earlier
+COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
 
 ## Verifying (rerun after desktop or libei updates)
 

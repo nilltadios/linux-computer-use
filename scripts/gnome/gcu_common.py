@@ -14,8 +14,8 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
 
-BRIDGE = ("org.gnome.Shell", "/org/claude/ComputerUse", "org.claude.ComputerUse")
-UUID = "computer-use@claude.local"
+BRIDGE = ("org.gnome.Shell", "/org/lcu/ComputerUse", "org.lcu.ComputerUse")
+UUID = "computer-use@lcu.local"
 _bus = None
 
 

@@ -33,7 +33,7 @@ fi
 busctl --user list 2>/dev/null | grep -q org.freedesktop.impl.portal.desktop.kde \
     && ok "xdg-desktop-portal-kde" "screen-share grant" || bad "xdg-desktop-portal-kde" "not running (real-time recording)" opt
 st="${XDG_STATE_HOME:-$HOME/.local/state}"
-[[ -s $st/linux-computer-use/screencast-monitors.token || -s $st/claude-kde-capture/restore-token-monitors ]] \
+[[ -s $st/linux-computer-use/screencast-monitors.token ]] \
     && ok "screen-share grant" "saved (real-time recording)" || bad "screen-share grant" "not yet: lcu capture record-setup (dialog, with the user)" opt
 /usr/bin/python3 -s -c 'import gi; gi.require_version("Atspi","2.0"); from gi.repository import Atspi' 2>/dev/null \
     && ok "python gi Atspi" "find/press controls by name" || bad "python gi Atspi" "missing (at-spi2-core)" opt

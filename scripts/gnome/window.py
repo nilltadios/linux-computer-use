@@ -3,7 +3,7 @@
 
 GNOME Shell refuses window lists (Introspect.GetWindows), Eval and screenshots to
 outside callers, so the small extension in extension/ runs these inside the shell
-and answers over D-Bus (org.gnome.Shell /org/claude/ComputerUse). It must be
+and answers over D-Bus (org.gnome.Shell /org/lcu/ComputerUse). It must be
 installed and enabled once (scripts/setup.sh), then active after a login.
 
 Usage:

@@ -23,9 +23,8 @@ PORTAL = ("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")
 RD = "org.freedesktop.portal.RemoteDesktop"
 STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "linux-computer-use"
 TOKEN = STATE / "remote-desktop.token"
-# grants saved by the earlier per-desktop skills; read once, then saved under STATE
-LEGACY = {TOKEN: STATE.parent / "cosmic-computer-use" / "remote-desktop.token",
-          STATE / "screencast-monitors.token": STATE.parent / "claude-kde-capture" / "restore-token-monitors"}
+# grant saved by the earlier COSMIC skill; read once, then saved under STATE
+LEGACY = {TOKEN: STATE.parent / "cosmic-computer-use" / "remote-desktop.token"}
 KEYBOARD, POINTER = 1, 2
 PERSIST_UNTIL_REVOKED = 2
 
