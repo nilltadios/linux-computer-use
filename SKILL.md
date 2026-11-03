@@ -287,6 +287,8 @@ screenshot.
 
 KDE also provides `window at X Y`, KWin's input hit test including decoration
 resize borders, and `window drag-resize MATCH W H [--edge EDGE] [--step PX]`.
+On KDE, `move-to` centers normal windows and lets KWin fit fullscreen or maximized
+windows to the destination monitor instead of retaining the old monitor's size.
 `EDGE` is left, right, top, bottom, or a corner such as bottom-right. The default
 chooses edges that fit the usable area; `--left` / `--top` choose the other sides.
 The command requires exactly one window and refuses minimized, maximized or
@@ -533,6 +535,7 @@ COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
 |---|---|---|---|
 | `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30, GNOME 2026-11-02, COSMIC 2026-11-02 |
 | `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-10-30, GNOME 2026-11-02 |
+| `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-02, KWin 6.8.2 |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-10-30, GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-10-30, GNOME 2026-11-02 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-02 |

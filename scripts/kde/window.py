@@ -29,7 +29,7 @@ ACTIONS:
   keep-above | no-keep-above
   close               ask the window to close (like the title-bar X; the app may
                       prompt to save). Never use on the user's apps without asking.
-  move-to OUTPUT      e.g. DP-1, eDP-1 (keeps size, centres)
+  move-to OUTPUT      e.g. DP-1, eDP-1 (centres normal windows; preserves fullscreen/maximize)
   geometry X Y W H    logical pixels (frame)
 --all also lists panels, popups and other non-normal windows.
 
@@ -135,6 +135,9 @@ try {
                 const o = workspace.screens.find(s => s.name === ARGS[0]);
                 if (!o) { out.ok = false; out.error = "no output " + ARGS[0]; break; }
                 workspace.sendClientToScreen(w, o);
+                // KWin sizes fullscreen/maximized windows for their destination output.
+                // Applying normal-window centering here overwrites that geometry.
+                if (w.fullScreen || maximized(w)) break;
                 const a = o.geometry, f = w.frameGeometry;
                 const width = Math.min(f.width, a.width), height = Math.min(f.height, a.height);
                 w.frameGeometry = {x: a.x + Math.round((a.width - width) / 2), y: a.y + Math.round((a.height - height) / 2), width, height};

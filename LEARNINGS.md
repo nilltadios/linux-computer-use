@@ -445,3 +445,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: cosmic-comp sends no geometry for a window while a move or resize grab holds it: an open toplevel-info connection gets no events until the release, and a new one sees x/y null (after waiting its 0.6 s geometry timeout). An idle desktop can also lag geometry past a short timeout, so null is not a usable moving flag. The window follows the pointer without lag, and its resize zone reaches 3 px outside the frame for SSD (Qt), GTK and libcosmic windows alike.
 - Do: Use lcu window drag-move / drag-resize; they release on schedule and verify after. Do not poll lcu window info during a held drag (each call then takes ~0.7 s). Keep move targets 16 px inside the usable area: a pointer near the top edge snapped a window to the top half.
 - Evidence: Dolphin (Flatpak, SSD), COSMIC Terminal, Gear Lever on DP-1 (scale 1.5): 8 edges/corners each shrank 60 px and grew back exactly (24/24); 12 header moves incl. DP-1 <-> eDP-1 (scale 1.25) landed exactly in 0.40 s, --fast 0.1 s, --slow 1.0 s; panel size M measured 56 logical px on both monitors
+
+### 2026-11-02 · broken · KDE move-to must preserve fullscreen and maximized destination geometry
+- Status: promoted
+- Desktop: kde
+- Seen on: KWin 6.8.2, Plasma 6.8.2, libei 1.6.0, spectacle 6.8.2
+- What: Moving fullscreen or maximized windows between differently sized outputs retained the old dimensions because normal-window centering overwrote KWin destination sizing.
+- Do: After sendClientToScreen, let KWin size fullscreen and maximized windows; center only normal windows. Run tests/test-move-to-state.sh on a two-monitor desktop to check actual geometry as well as the state flag.
+- Evidence: KDE 6.8.2: the previous release failed all four fullscreen/maximized cross-monitor geometry checks; skipping normal-window centering for those states passed all four.
