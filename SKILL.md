@@ -41,7 +41,7 @@ lists every option.
 
 ## Keep this skill current
 
-Before running the first `lcu` command in each task, check for upstream updates
+Before running the first `lcu` command in each session, check for upstream updates
 from the installed skill directory:
 
 ```bash
@@ -56,7 +56,8 @@ available or history has diverged, report that before desktop actions. Preserve
 local edits, commits and `LEARNINGS.local.md`; back up and verify any authorized
 update instead of resetting or rebasing automatically. If the network check
 fails, say the update status is unknown and continue with the installed version.
-Check once per task, not before every command, and reread `SKILL.md` after updating.
+Check once per session, not again for each task or command in that session, and
+reread `SKILL.md` after updating.
 
 This skill learns from use. Lessons from earlier sessions are in `LEARNINGS.md`
 (shared with everyone who installs the skill) and `LEARNINGS.local.md` (this
