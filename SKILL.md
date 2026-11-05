@@ -475,12 +475,24 @@ $L capture shot out.png --screen DP-1                # one monitor
 $L capture shot out.png --area 1600 200 800 450      # logical X Y W H
 $L capture shot out.png --window class:org.kde.dolphin   # raises it, grabs it, gives focus back
 $L capture shot out.png --window title:Okular --no-raise # crop where it is (may include windows on top)
-$L capture shot out.png --pointer                    # include the cursor
+$L capture shot out.png --pointer                    # include the cursor (shots for the user; see below)
 $L capture shot out.png --window MATCH --own         # COSMIC: the window's own surface, even if covered
 $L capture shot out.png --screencast                 # GNOME: without the extension (no --window)
 ```
 
 Prints JSON with the file, pixel size, logical region and `pixels_per_logical`.
+
+**When to include the cursor.** Shots you take to read the screen or find a
+target leave the cursor out (the default), so it never hides text or a button.
+Pass `--pointer` in two cases:
+- the shot goes to the user (sent, attached, or put in a report): they expect
+  to see where the pointer is, as on their own screen;
+- the answer depends on the pointer: where it is, what it is hovering, whether
+  a move landed, the cursor shape (resize arrows, busy, text beam), or the user
+  says "where my mouse is" or "under my cursor".
+For a user-facing shot that you also use to locate controls, take two: one
+without the cursor to work from, and one with it to send.
+
 Save into the session scratchpad or a task folder, never loose in the home folder.
 Read the PNG to look at it; downscale very wide ones first
 (`ffmpeg -i in.png -vf scale=1600:-1 out.png`). `grim` does not work on KWin or
