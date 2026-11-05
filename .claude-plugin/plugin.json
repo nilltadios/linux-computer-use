@@ -1,0 +1,8 @@
+{
+  "name": "linux-computer-use",
+  "description": "Control a Linux Wayland desktop (KDE Plasma 6, GNOME, COSMIC): mouse, keyboard, windows, screenshots, recording, accessibility and OCR.",
+  "author": { "name": "nilltadios" },
+  "repository": "https://github.com/nilltadios/linux-computer-use",
+  "keywords": ["linux", "wayland", "computer-use", "kde", "gnome", "cosmic"],
+  "skills": "./"
+}

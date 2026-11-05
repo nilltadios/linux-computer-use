@@ -41,8 +41,12 @@ lists every option.
 
 ## Keep this skill current
 
-Before running the first `lcu` command in each session, check for upstream updates
-from the installed skill directory:
+**Installed as a Claude Code plugin** (`$SKILL_DIR` has no `.git`): Claude Code updates
+the skill itself when the marketplace's auto-update is on. Skip the git check below,
+which does not apply, and do not edit files in `$SKILL_DIR`: every update replaces them.
+
+**Installed as a git clone:** before running the first `lcu` command in each session,
+check for upstream updates from the installed skill directory:
 
 ```bash
 git -C "$SKILL_DIR" fetch --no-tags origin
@@ -62,6 +66,9 @@ reread `SKILL.md` after updating.
 This skill learns from use. Lessons from earlier sessions are in `LEARNINGS.md`
 (shared with everyone who installs the skill) and `LEARNINGS.local.md` (this
 machine only, git-ignored); you add to them, and fix this file, as you work.
+A plugin install keeps the local file in `~/.local/state/linux-computer-use/` and can
+only add `--local` lessons; shared lessons and fixes to this file or the scripts are
+made from a git clone.
 Every entry is tagged `Desktop: kde|gnome|cosmic|all`.
 
 **Before you start**, read what applies to the task:
@@ -124,7 +131,7 @@ $L learn add --local --desktop all --kind app --app codium --title "..." ...   #
 $L learn check        # must exit 0; also lists this desktop's entries recorded on an older stack
 ```
 
-**Before you finish the task**: run `$L learn check`, then commit the skill
+**Before you finish the task**: run `$L learn check`, then, in a git clone, commit the skill
 change locally (`git -C "$SKILL_DIR" add -A && git -C "$SKILL_DIR" commit -m "learn: <lesson>"`)
 so it can be reviewed and reverted. **Never push**; pushing needs the user's
 explicit yes after they have seen the diff. In your final message, tell the
@@ -589,7 +596,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 6 `ok` | 2026-11-05 |
-| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 14 `ok` | 2026-11-05 |
+| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 17 `ok` | 2026-11-05 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen
 window on MONITOR and has seen the pointer move over it, and checks focus again just

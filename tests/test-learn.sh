@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks `lcu learn` on a temporary copy of LEARNINGS.md (the real file is not touched).
-# Expected: 14 "ok" lines and exit 0.
+# Expected: 17 "ok" lines and exit 0.
 set -u
 here="$(cd "$(dirname "$0")/.." && pwd)"
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
@@ -51,4 +51,15 @@ printf '\n### 2026-01-01 · new · Hand edit without fields\n- Status: active\n'
 "${L[@]}" add --kind new --desktop gnome --title "Gnome only probe" --what w --do d --evidence e >/dev/null \
   && "${L[@]}" list --desktop kde | grep -q 'Gnome only probe' && bad "list hides other desktops' entries" || ok "list hides other desktops' entries"
 "${L[@]}" list --desktop any | grep -q 'Gnome only probe' && ok "list --desktop any shows every entry" || bad "list --desktop any shows every entry"
+# A copy with no .git, like a plugin install: the local file must live outside it.
+plug="$tmp/plugin"; mkdir -p "$plug"; cp -r "$here/scripts" "$plug/"; cp "$here/LEARNINGS.md" "$plug/"
+state="$tmp/state"
+P=(env -u LCU_LEARN_LOG XDG_STATE_HOME="$state" /usr/bin/python3 -s "$plug/scripts/learn.py")
+"${P[@]}" add --kind new --title "Plugin shared" --what w --do d --evidence e >/dev/null 2>&1 \
+  && bad "plugin install refuses shared lessons" || ok "plugin install refuses shared lessons"
+"${P[@]}" add --local --kind app --app ProbeApp --title "Plugin local" --what w --do d --evidence e >/dev/null \
+  && grep -q 'Plugin local' "$state/linux-computer-use/LEARNINGS.local.md" && [ ! -e "$plug/LEARNINGS.local.md" ] \
+  && ok "plugin install keeps local lessons outside the install" || bad "plugin install keeps local lessons outside the install"
+"${P[@]}" list --app probeapp | grep -q 'Plugin local' \
+  && ok "plugin install lists local lessons" || bad "plugin install lists local lessons"
 [ "$fails" -eq 0 ]

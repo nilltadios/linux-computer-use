@@ -20,13 +20,17 @@ LEARNINGS.md is shared with everyone who installs the skill, and is only for Lin
 computer use itself (desktops, portals, toolkits, this skill's scripts). --local writes
 to LEARNINGS.local.md instead (git-ignored), for how a specific app behaves and for
 lessons that only matter on this machine; add refuses --kind app or --app without it.
-list and check read both.
+list and check read both. In a plugin install, which is replaced on every update, the
+local file lives in ~/.local/state/linux-computer-use/ and only --local lessons can be added.
 """
 import argparse, datetime, os, re, subprocess, sys
 from pathlib import Path
 
 LOG = Path(os.environ.get("LCU_LEARN_LOG") or Path(__file__).resolve().parent.parent / "LEARNINGS.md")
-LOCAL = LOG.with_name("LEARNINGS.local.md")
+# A plugin install has no .git and is replaced on every update, so nothing written beside it would last.
+PLUGIN_INSTALL = "LCU_LEARN_LOG" not in os.environ and not (LOG.parent / ".git").exists()
+STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "linux-computer-use"
+LOCAL = (STATE if PLUGIN_INSTALL else LOG.parent) / "LEARNINGS.local.md"
 LOCAL_HEAD = """# Local learnings
 
 Lessons for this machine only (git-ignored, never published): same format as
@@ -151,7 +155,11 @@ def problems(entries):
 
 
 def cmd_add(a):
+    if PLUGIN_INSTALL and not a.local:
+        sys.exit("this is a plugin install, which is replaced on every update: use --local, "
+                 "or add shared lessons from a git clone of the skill")
     target = LOCAL if a.local else LOG
+    target.parent.mkdir(parents=True, exist_ok=True)
     if any(e["title"].lower() == a.title.lower() for e in load()):
         sys.exit(f"an entry titled '{a.title}' exists; edit it instead")
     desk = a.desktop or current_desktop()

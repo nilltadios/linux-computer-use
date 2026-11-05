@@ -1,0 +1,8 @@
+{
+  "name": "linux-computer-use",
+  "description": "Computer use for Linux Wayland desktops.",
+  "owner": { "name": "nilltadios" },
+  "plugins": [
+    { "name": "linux-computer-use", "source": "./" }
+  ]
+}

@@ -22,7 +22,18 @@ one vendor's tools.
 
 ## Install
 
-Clone it into the skills folder your agent reads; see your agent's documentation
+**Claude Code:** install it as a plugin, then turn on auto-update for its marketplace
+in `/plugin` > Marketplaces (auto-update is off by default for marketplaces like this one).
+
+```text
+/plugin install linux-computer-use --marketplace nilltadios/linux-computer-use
+```
+
+To edit the skill or add shared lessons, use a git clone instead. A clone in
+`~/.claude/skills/` also loads there, so remove the plugin first, or remove the
+clone's symlink if you switch to the plugin.
+
+**Other agents:** clone it into the skills folder your agent reads; see your agent's documentation
 for the folder. Common ones: `~/.agents/skills/` (shared by several agents, Codex
 among them), `~/.codex/skills/` (Codex), `~/.gemini/config/skills/`
 (Antigravity). For several agents, keep one clone and
