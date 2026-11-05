@@ -1,7 +1,7 @@
 # Learnings
 
 Lessons from real sessions with this skill, oldest first. SKILL.md says when to
-read and write this file ("Keep this skill current"). Add entries with
+read and write this file ("Lessons"). Add entries with
 `lcu learn add` and run `lcu learn check` after any edit.
 
 Each entry is one verified lesson:

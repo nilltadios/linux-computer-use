@@ -29,7 +29,8 @@ in `/plugin` > Marketplaces (auto-update is off by default for marketplaces like
 /plugin install linux-computer-use --marketplace nilltadios/linux-computer-use
 ```
 
-To edit the skill or add shared lessons, use a git clone instead. A clone in
+To edit the skill or add shared lessons, use a git clone instead, and keep it current
+outside the skill, for example with a session-start hook that runs `git pull --ff-only`. A clone in
 `~/.claude/skills/` also loads there, so remove the plugin first, or remove the
 clone's symlink if you switch to the plugin.
 

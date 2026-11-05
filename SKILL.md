@@ -39,36 +39,14 @@ alone. X11 sessions and other compositors are not supported; `detect` says so.
 Scripts run on `/usr/bin/python3 -s` (PyGObject from the distro); `lcu TOOL --help`
 lists every option.
 
-## Keep this skill current
-
-**Installed as a Claude Code plugin** (`$SKILL_DIR` has no `.git`): Claude Code updates
-the skill itself when the marketplace's auto-update is on. Skip the git check below,
-which does not apply, and do not edit files in `$SKILL_DIR`: every update replaces them.
-
-**Installed as a git clone:** before running the first `lcu` command in each session,
-check for upstream updates from the installed skill directory:
-
-```bash
-git -C "$SKILL_DIR" fetch --no-tags origin
-git -C "$SKILL_DIR" status --short
-git -C "$SKILL_DIR" rev-list --left-right --count HEAD...origin/main
-git -C "$SKILL_DIR" log --oneline HEAD..origin/main
-```
-
-The counts are local-only commits, then upstream-only commits. If updates are
-available or history has diverged, report that before desktop actions. Preserve
-local edits, commits and `LEARNINGS.local.md`; back up and verify any authorized
-update instead of resetting or rebasing automatically. If the network check
-fails, say the update status is unknown and continue with the installed version.
-Check once per session, not again for each task or command in that session, and
-reread `SKILL.md` after updating.
+## Lessons
 
 This skill learns from use. Lessons from earlier sessions are in `LEARNINGS.md`
 (shared with everyone who installs the skill) and `LEARNINGS.local.md` (this
 machine only, git-ignored); you add to them, and fix this file, as you work.
 A plugin install keeps the local file in `~/.local/state/linux-computer-use/` and can
 only add `--local` lessons; shared lessons and fixes to this file or the scripts are
-made from a git clone.
+made from a git clone. Do not edit files in a plugin install: every update replaces them.
 Every entry is tagged `Desktop: kde|gnome|cosmic|all`.
 
 **Before you start**, read what applies to the task:
