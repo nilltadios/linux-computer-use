@@ -16,9 +16,11 @@ Entries are appended with today's date, Status: active and the current desktop s
 versions; `check` also lists this desktop's active entries recorded on a different
 stack so they can be re-verified.
 
-LEARNINGS.md is shared with everyone who installs the skill. --local writes to
-LEARNINGS.local.md instead (git-ignored), for lessons that only matter on this
-machine or need software most users do not have; list and check read both.
+LEARNINGS.md is shared with everyone who installs the skill, and is only for Linux
+computer use itself (desktops, portals, toolkits, this skill's scripts). --local writes
+to LEARNINGS.local.md instead (git-ignored), for how a specific app behaves and for
+lessons that only matter on this machine; add refuses --kind app or --app without it.
+list and check read both.
 """
 import argparse, datetime, os, re, subprocess, sys
 from pathlib import Path
@@ -208,7 +210,7 @@ s.add_argument("--title", required=True, help="one line, unique; the lesson itse
 s.add_argument("--what", required=True, help="what happened or what is true")
 s.add_argument("--do", required=True, help="what to do instead / how to use it")
 s.add_argument("--evidence", required=True, help="the command and observation that verified it")
-s.add_argument("--app", help="window class or app name, required for --kind app")
+s.add_argument("--app", help="window class or app name, required for --kind app; needs --local")
 s.add_argument("--local", action="store_true", help="write to LEARNINGS.local.md (this machine only, not published)")
 s.add_argument("--desktop", choices=DESKTOPS, help="default: the detected desktop; all = not desktop-specific")
 s.set_defaults(fn=cmd_add)
@@ -223,4 +225,7 @@ sub.add_parser("versions").set_defaults(fn=lambda a: print(versions()))
 a = p.parse_args()
 if a.cmd == "add" and a.kind == "app" and not a.app:
     p.error("--kind app needs --app")
+if a.cmd == "add" and (a.kind == "app" or a.app) and not a.local:
+    p.error("a lesson about a specific app goes in LEARNINGS.local.md: add --local "
+            "(the shared log is only for Linux computer use itself)")
 a.fn(a)

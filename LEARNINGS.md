@@ -20,6 +20,9 @@ gives), `broken` (SKILL.md advice that failed or stopped working), `app` (how
 one app behaves under this skill). Never delete an entry; change its Status
 and say why, so a later session does not re-learn a dead end.
 
+New `app` lessons go in LEARNINGS.local.md (`lcu learn add --local`): this file
+is only for Linux computer use itself. The `app` entries below predate that rule.
+
 Entries before 2026-10-30 come from the three skills this one merges
 (kde-computer-use, gnome-computer-use, cosmic-computer-use); their commands name
 the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now

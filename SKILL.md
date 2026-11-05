@@ -79,7 +79,7 @@ or would save the next one time:
 - you found a more reliable or faster way than the one given here (`better`);
 - you found a capability or trick that is not written down yet (`new`);
 - an app has a quirk an agent must know to drive it, such as where a control
-  lives, which keys it ignores, or what a dialog means (`app`).
+  lives, which keys it ignores, or what a dialog means (`app`; always `--local`).
 
 Rules:
 1. **Only verified lessons.** Record what you saw work or fail, with the command
@@ -88,21 +88,23 @@ Rules:
    app, control and condition, not the user's files or what they asked for.
 3. **Tag the desktop honestly.** `add` stamps the detected desktop. Use
    `--desktop all` only for what does not depend on the compositor (an Electron,
-   Flatpak, website or toolkit quirk, or the shared `input`/`a11y`/`ocr`/`learn`
-   scripts). A lesson seen on one desktop that probably holds on the others is
+   Flatpak or toolkit quirk, a local app lesson, or the shared
+   `input`/`a11y`/`ocr`/`learn` scripts). A lesson seen on one desktop that probably holds on the others is
    still tagged with the one you saw; say "likely elsewhere too" in What.
 4. **The repo may be public.** No home paths, names, accounts, emails, tokens,
    links to the user's content, or anything read from their windows. `check`
    rejects the common leaks; you catch the rest.
-   **Shared or local?** A lesson goes in the shared LEARNINGS.md only if most
-   users of the skill could hit it: the desktops, the skill's own scripts, and
-   common apps or toolkits (Qt, GTK, libadwaita, Electron, Firefox, Dolphin,
-   Nautilus, COSMIC Files...). Lessons about apps or setups few users have go in
-   LEARNINGS.local.md with `add --local`.
+   **Shared or local?** The shared LEARNINGS.md is only for Linux computer use
+   itself: the desktops, compositors, portals, toolkits (Qt, GTK, libadwaita,
+   Electron...) and this skill's own scripts. How one specific app behaves or how
+   to work inside it, however common the app, is never shared; if it is worth
+   keeping, record it in LEARNINGS.local.md with `add --local`. So are lessons
+   about setups few users have. `add` refuses `--kind app` or `--app` without
+   `--local`.
 5. **Fix SKILL.md itself when it is plainly wrong or out of date.** Correct the
    text in place, keep "Checked on"/test dates true, and add a `broken` or
    `better` entry pointing to the change with Status `promoted`. Use LEARNINGS.md
-   alone for app quirks and for lessons seen only once.
+   alone for lessons seen only once, and LEARNINGS.local.md for app quirks.
 6. **One lesson per entry, no duplicates.** If an entry already covers it,
    edit that entry (add evidence, correct it) instead of adding another.
    Never delete an entry: set Status to `superseded` or `wrong` and say why.
@@ -117,9 +119,8 @@ Rules:
 ```bash
 $L learn add --kind better --title "One-line lesson" \
   --what "what happened" --do "what to do instead" --evidence "command -> observation"
-$L learn add --kind app --app org.kde.dolphin --title "..." --what "..." --do "..." --evidence "..."
-$L learn add --desktop all --kind app --app codium --title "..." ...   # not desktop-specific
-$L learn add --local --kind app --app SomeNicheApp --title "..." ...   # this machine only
+$L learn add --local --kind app --app org.kde.dolphin --title "..." --what "..." --do "..." --evidence "..."
+$L learn add --local --desktop all --kind app --app codium --title "..." ...   # not desktop-specific
 $L learn check        # must exit 0; also lists this desktop's entries recorded on an older stack
 ```
 
@@ -588,7 +589,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 6 `ok` | 2026-11-05 |
-| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-04 |
+| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 14 `ok` | 2026-11-05 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen
 window on MONITOR and has seen the pointer move over it, and checks focus again just

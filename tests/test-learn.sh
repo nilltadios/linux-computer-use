@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks `lcu learn` on a temporary copy of LEARNINGS.md (the real file is not touched).
-# Expected: 12 "ok" lines and exit 0.
+# Expected: 14 "ok" lines and exit 0.
 set -u
 here="$(cd "$(dirname "$0")/.." && pwd)"
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
@@ -26,8 +26,14 @@ cp "$here/LEARNINGS.md" "$LCU_LEARN_LOG"
 "${L[@]}" add --kind better --title "Leaky2" --what w --do d --evidence "token ghp_abcdefghijklmnop" >/dev/null 2>&1 \
   && bad "token rejected" || ok "token rejected"
 
-"${L[@]}" add --kind app --title "No app" --what w --do d --evidence e >/dev/null 2>&1 \
+"${L[@]}" add --local --kind app --title "No app" --what w --do d --evidence e >/dev/null 2>&1 \
   && bad "app kind needs --app" || ok "app kind needs --app"
+
+"${L[@]}" add --kind app --app ProbeApp --title "Shared app" --what w --do d --evidence e >/dev/null 2>&1 \
+  && bad "shared app kind rejected" || ok "shared app kind rejected"
+
+"${L[@]}" add --kind new --app ProbeApp --title "Shared app2" --what w --do d --evidence e >/dev/null 2>&1 \
+  && bad "shared --app rejected" || ok "shared --app rejected"
 
 printf '\n### 2026-01-01 · new · Hand edit without fields\n- Status: active\n' >> "$LCU_LEARN_LOG"
 "${L[@]}" check >/dev/null && bad "check catches missing fields" || ok "check catches missing fields"
