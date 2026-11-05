@@ -461,3 +461,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: The ScreenCast portal stores a restore token for the app id it reads from the caller's systemd scope (app-<id>-<n>.scope). A grant saved while lcu ran under one app was not accepted when lcu ran under another: the portal showed 'Choose screens to share with <app>' and record timed out. Seen after a distribution upgrade, when the same machine started running lcu from a desktop app's scope; likely on any portal backend that keys grants by app id.
 - Do: Nothing; portal.py now keeps one grant per app id and the error names the app. When record says the grant was not accepted, run capture record-setup with the user from that same app.
 - Evidence: PermissionStore Lookup screencast showed the saved token under app '' and two others under the desktop app's id; test-record.sh failed 4/4 with the old file, a screenshot during record showed the share dialog naming the app; with the per-app token file all 4 passed.
+
+### 2026-11-05 · broken · On a locked COSMIC screen, input still reaches the greeter
+- Status: active
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
+- What: With the screen locked, lcu input keeps working: typed text and Enter go to cosmic-greeter as a password attempt. A capture can fail with 'no frame' once and then return only the wallpaper, and loginctl LockedHint stays no.
+- Do: Treat any 'no frame' capture, or a shot showing no windows, as a locked screen. Take a shot and confirm the window before each input, as separate calls so a failed shot stops the input. Never send input until the user has unlocked.
+- Evidence: capture shot -> no frame within 5 s; input type + key enter -> journal shows cosmic-greeter authentication failure; next area shot -> wallpaper only; LockedHint=no
