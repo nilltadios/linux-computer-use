@@ -20,8 +20,8 @@ gives), `broken` (SKILL.md advice that failed or stopped working), `app` (how
 one app behaves under this skill). Never delete an entry; change its Status
 and say why, so a later session does not re-learn a dead end.
 
-New `app` lessons go in LEARNINGS.local.md (`lcu learn add --local`): this file
-is only for Linux computer use itself. The `app` entries below predate that rule.
+App lessons go in LEARNINGS.local.md (`lcu learn add --local`): this file is only
+for Linux computer use itself. Earlier app entries were moved out on 2026-11-05.
 
 Entries before 2026-10-30 come from the three skills this one merges
 (kde-computer-use, gnome-computer-use, cosmic-computer-use); their commands name
@@ -94,24 +94,6 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Do: Activate Nautilus, then: move ICON sleep 200 down left sleep 200 rmove 10 5 sleep 100 rmove 20 10 sleep 100, several move steps toward the target with sleep 100, move TARGET sleep 500 rmove 3 3 sleep 500 up left. The small first moves start the DnD; the pause over the target lets it register.
 - Evidence: gnome-input.py with that sequence -> target app showed the dropped file's details page
 
-### 2026-10-29 · app · Gear Lever 4.x: the install button is 'Move to the app menu', and it moves the file
-- Status: active
-- App: it.mijorus.gearlever
-- Desktop: all
-- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
-- What: After an AppImage is opened or dropped, there is no 'Install' button. The red 'Move to the app menu' button installs it: the file is moved (not copied) to ~/AppImages/<name>.appimage and a .desktop entry is written to ~/.local/share/applications. Afterwards the page shows Launch/Remove. The back arrow at the top-left returns to 'Installed applications'. Drag-and-drop of an AppImage onto the main window is accepted.
-- Do: gnome-a11y.py press gearlever --name 'Move to the app menu' --role button --exact --depth 25; verify with ls ~/AppImages and the Installed applications list
-- Evidence: Gear Lever 4.6.2 flatpak: press -> ok, file gone from source folder, present in ~/AppImages, listed under Installed applications
-
-### 2026-10-29 · app · Starting VSCodium/VS Code with --force-renderer-accessibility switches the editor to Screen Reader Optimized mode
-- Status: active
-- App: codium
-- Desktop: all
-- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
-- What: Launching the VSCodium AppImage with --force-renderer-accessibility (as SKILL.md advises for an a11y tree) made the status bar show 'Screen Reader Optimized'; the editor then behaves in screen-reader mode (e.g. different word highlighting).
-- Do: Only add the flag when you need AT-SPI inside the window; for opening a file or screenshots leave it off, or mention the mode in your report. It applies to that run only unless editor.accessibilitySupport is saved in settings.
-- Evidence: vscodium.appimage --force-renderer-accessibility --new-window file.txt -> status bar item 'Screen Reader Optimized' visible in a full-monitor screenshot
-
 ### 2026-10-29 · new · Super+Left/Right through gnome-input.py half-tiles the focused window exactly
 - Status: promoted (SKILL.md "Input" notes)
 - Desktop: gnome
@@ -167,24 +149,6 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: A viewer redrew part of an image wrongly a few seconds after maximizing; single screenshots kept missing the moment or caught the wrong state.
 - Do: gnome-capture.py record --screen OUTPUT while reproducing, then ffmpeg -vf fps=20 to PNGs and compare each frame with the last (or a reference) per region to find when and where it changes; crop those frames to look.
 - Evidence: 20 fps frame diff of a 10 s recording showed the bottom band changing at 5.95-6.3 s while the top stayed fixed; the cropped frames showed the corrupted strip
-
-### 2026-10-29 · app · Jira's description editor needs a second click before select-all, and converts pasted Markdown
-- Status: active
-- App: Jira Cloud (redhat.atlassian.net) in a browser
-- Desktop: all
-- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
-- What: In the Create dialog the first click on the template only activated the editor; ctrl+a + ctrl+v then did nothing. A second click inside the active editor, ctrl+a, ctrl+v replaced the template, and the pasted Markdown (### headings, lists, backticks, links) became formatting.
-- Do: Click the description, click again inside it, ctrl+a, ctrl+v; scroll the dialog to check the template is gone. Pickers (Affects versions, Components): click, type the value, Enter.
-- Evidence: First paste: template unchanged in a crop screenshot; second: headings and code spans rendered, template text gone
-
-### 2026-10-29 · app · Switch GitLab's comment box to plain text before pasting Markdown
-- Status: active
-- App: GitLab (gitlab.gnome.org) in a browser
-- Desktop: all
-- Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
-- What: The comment box opens in rich-text mode. Its 'Switch to plain text editing' link under the box gives a Markdown textarea; Markdown pasted there rendered correctly on post. (Pasting Markdown into the rich-text mode was not tested.)
-- Do: Click 'Switch to plain text editing', paste, check the text, then click Comment.
-- Evidence: Pasted a Markdown comment in plain-text mode; the posted note rendered bullets, code spans and issue links
 
 ### 2026-10-29 · new · cosmic-comp refuses its own EIS D-Bus method to everyone but the portal and the on-screen keyboard
 - Status: promoted
@@ -283,25 +247,6 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Do: Grab 4 px in at the bottom-right corner, 3 px at the top-left, or the middle of the one edge that must move. Confirm the resize cursor first with 'capture shot --area ... --pointer'. Then: input move <12 px further inside> sleep 100 move X Y sleep 200 down left sleep 300, then rmove steps of at most 8 px (12-50 ms apart), then sleep 400 up left. Compare 'window info' before and after, and stop at the first drag that changed nothing so later presses cannot land in other windows.
 - Evidence: input drag 2298 698 2700 900 -> still 700x500; manual sequence from 2296,696 -> 1103.75x698.75. Cursor probes at 2-6 px above the bottom edge: resize arrow at 2-5, normal at 6. 12-step drags of 46 px/step -> unchanged; 8 px steps with an inside approach -> 8 of 8 target sizes reached (widths stop at 940, the app minimum).
 
-### 2026-10-30 · app · 'dolphin --new-window' can open a tab in the existing window, and 'window launch' then returns that window
-- Status: wrong (corrected 2026-10-30; the earlier window had already been closed)
-- App: org.kde.dolphin
-- Desktop: all
-- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
-- What: With Dolphin already running, 'lcu window launch --on DP-1 --match class:org.kde.dolphin -- dolphin --new-window DIR' added DIR as a tab to the user's existing Dolphin window and printed that window as the launched one, so later geometry calls resized the user's window.
-- Do: Before launching Dolphin for a test, record the existing Dolphin window ids and their geometry/state. After launch, compare ids; if no new id appeared, do not move or resize anything, restore the window's state (maximize/minimize) and ask the user. Prefer a file manager that is not already open, or ask the user before using theirs.
-- Evidence: window list afterwards: one org.kde.dolphin window with tabs 'screen' and 'drop test', same id that launch printed; restored with window maximize + minimize -> 1600x854 maximized, minimized
-
-
-### 2026-10-30 · app · A new Dolphin window can restore the previous session's tabs
-- Status: active
-- App: org.kde.dolphin
-- Desktop: kde
-- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
-- What: The earlier Dolphin reuse report was incorrect. The previous window had been closed before the test launch; a new window restored the session's tabs and looked like the old window.
-- Do: Compare window ids before and after launch. Restored tabs do not prove reuse. Do not change a pre-existing window without authorization. A new test window can still contain restored private tabs; prefer a disposable probe.
-- Evidence: Corrected session chronology: previous window closed at 10:27, test launch at about 10:42. The earlier reuse claim was explicitly withdrawn in the handoff. The old entry is retained with Status wrong.
-
 ### 2026-10-30 · better · KWin resize safety needs its own hit test and enough initial motion
 - Status: promoted (window at and drag-resize)
 - Desktop: kde
@@ -309,15 +254,6 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: A thin server-side resize border extends outside frameGeometry. Rectangle checks identify a window behind it. Six pixels of initial motion did not start a resize on the GTK4 probe, while sixteen pixels did. A drag can also stop short of the requested dimensions, so the returned geometry matters.
 - Do: Use window at, which calls workspace.windowAt, to verify the actual target including resize borders. Use window drag-resize for small stepped motion, crossing the drag threshold before checking the resize flag. Exit 3 means the target was not reached; inspect the actual dimensions rather than assuming a minimum-size failure.
 - Evidence: GTK4 probe on KWin: 6 px initial motion -> resizing false; 16 px -> resizing true and width increased 16.25 px. workspace.windowAt returned the probe 1-4 px beyond its right frame, while frame containment returned the window behind it. tests/test-drag-resize.sh verifies all eight handles and reports constrained targets separately.
-
-### 2026-10-30 · new · A Dolphin drop can reach a libcosmic Flatpak through text/uri-list
-- Status: active
-- App: org.kde.dolphin, libcosmic
-- Desktop: kde
-- Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
-- What: A real Dolphin-to-libcosmic Flatpak drop opened the receiving app's review. Preferring the portal transfer key failed; preferring text/uri-list opened the file review. The filename contained a space. Files outside the sandbox's readable roots were not covered.
-- Do: For compositor drag tests, use input drag after verifying the source and target windows. Confirm the receiving app's review without applying an install. A successful semantic drop command alone does not test a compositor drag.
-- Evidence: The app repository's WC-002 follow-up records the real input drag onto the dev Flatpak, the opened review and cancellation.
 
 ### 2026-10-30 · new · Direct geometry does not test the minimum size reachable by pointer
 - Status: promoted (SKILL.md window commands)
