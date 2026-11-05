@@ -472,3 +472,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: With the screen locked, lcu input keeps working: typed text and Enter go to cosmic-greeter as a password attempt. A capture can fail with 'no frame' once and then return only the wallpaper, and loginctl LockedHint stays no.
 - Do: Treat any 'no frame' capture, or a shot showing no windows, as a locked screen. Take a shot and confirm the window before each input, as separate calls so a failed shot stops the input. Never send input until the user has unlocked.
 - Evidence: capture shot -> no frame within 5 s; input type + key enter -> journal shows cosmic-greeter authentication failure; next area shot -> wallpaper only; LockedHint=no
+
+### 2026-11-05 · broken · Update the skill from outside SKILL.md, before it is read
+- Status: active
+- Desktop: all
+- Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
+- What: SKILL.md used to tell agents to check for updates and reread it, so an update cost two reads of the skill in one session. The check is removed; nothing in the skill updates it now, so an install with no outside update stays on its old version.
+- Do: Do not add an update step back to SKILL.md. Claude Code users who only use the skill: install the plugin and turn on auto-update for its marketplace; a new version normally loads the next session. Anyone editing the skill or adding shared lessons: keep a git clone and pull it from a session-start hook (git pull --ff-only, silent, with a timeout) so the first read is current; a pull that cannot fast-forward leaves the clone behind with no warning. Other agents: use their own start hook or pull by hand. If an install looks out of date, tell the user once rather than updating mid-session.
+- Evidence: SessionStart hook in a new session -> .git/FETCH_HEAD updated; test clone one commit behind -> pulled to latest; clone with a local commit -> unchanged; plugin install from GitHub -> skill found and lcu runs from the cached copy. Plugin auto-update has not been seen firing yet.
