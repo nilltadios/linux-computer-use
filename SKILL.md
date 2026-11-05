@@ -573,8 +573,10 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   refuses its own EIS method to everyone but its portal, so there is no way around
   that dialog. `$L input --forget` deletes the grant. Nothing else asks.
 
-Grants live in `~/.local/state/linux-computer-use/`; a grant saved by the earlier
-COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
+Grants live in `~/.local/state/linux-computer-use/`, one per app. Until an app has its
+own, the file from before grants were per app (`remote-desktop.token`) is tried, then the
+earlier COSMIC skill's (`~/.local/state/cosmic-computer-use/`). A grant from another app
+makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 3 s.
 
 ## Verifying (rerun after desktop or libei updates)
 
@@ -585,6 +587,7 @@ COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 6 `ok` | 2026-11-05 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-04 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen

@@ -53,16 +53,19 @@ def _per_app(name):
 
 
 TOKEN = _per_app("remote-desktop")
-# grant saved by the earlier COSMIC skill; read once, then saved under STATE
-LEGACY = {TOKEN: STATE.parent / "cosmic-computer-use" / "remote-desktop.token"}
+# Older grants, read in this order until a new one is saved under TOKEN: the file used before
+# grants were per app, which may already belong to this app, then the earlier COSMIC skill's.
+LEGACY = {TOKEN: tuple(p for p in (STATE / "remote-desktop.token",
+                                   STATE.parent / "cosmic-computer-use" / "remote-desktop.token") if p != TOKEN)}
+GRANT_NOTICE_AFTER = 3  # s; a saved grant the portal accepts answers well before this
 KEYBOARD, POINTER = 1, 2
 PERSIST_UNTIL_REVOKED = 2
 
 
 def load_token(path=TOKEN):
-    for p in (path, LEGACY.get(path)):
+    for p in (path, *LEGACY.get(path, ())):
         try:
-            if p and (tok := p.read_text().strip()):
+            if tok := p.read_text().strip():
                 return tok
         except OSError:
             pass
@@ -77,9 +80,8 @@ def save_token(tok, path=TOKEN):
 
 
 def forget_token():
-    TOKEN.unlink(missing_ok=True)
-    if LEGACY[TOKEN].exists():
-        LEGACY[TOKEN].unlink()
+    for p in (TOKEN, *LEGACY[TOKEN]):
+        p.unlink(missing_ok=True)
     print(f"removed {TOKEN}; the next input call shows the portal dialog again")
 
 
@@ -97,8 +99,9 @@ class _Portal:
                                                       Gio.DBusCallFlags.NONE, 30000, fds, None)
         return r.unpack(), fdl
 
-    def _request(self, method, build, timeout, missing=None):
-        """Call a portal method that answers through a Request object; -> results dict."""
+    def _request(self, method, build, timeout, missing=None, notice=None):
+        """Call a portal method that answers through a Request object; -> results dict.
+        notice = (seconds, text): print text to stderr once if no answer came by then."""
         self._n += 1
         token = f"lcu{os.getpid()}_{self._n}"
         path = f"/org/freedesktop/portal/desktop/request/{self.sender}/{token}"
@@ -108,9 +111,12 @@ class _Portal:
                                         lambda *a: got.append(a[5].unpack()))
         try:
             self._call(method, build({"handle_token": GLib.Variant("s", token)}))
-            ctx, end = GLib.MainContext.default(), time.monotonic() + timeout
-            while not got and time.monotonic() < end:
+            ctx, start = GLib.MainContext.default(), time.monotonic()
+            while not got and time.monotonic() - start < timeout:
                 ctx.iteration(False) or time.sleep(0.01)
+                if notice and time.monotonic() - start >= notice[0]:
+                    print(notice[1], file=sys.stderr, flush=True)
+                    notice = None
         finally:
             self.bus.signal_unsubscribe(sub)
         if not got:
@@ -158,11 +164,14 @@ class RemoteDesktop(_Portal):
         if token:
             opts["restore_token"] = GLib.Variant("s", token)
         self._request("SelectDevices", lambda o: GLib.Variant("(oa{sv})", (self.session, {**o, **opts})), 10)
+        asking = ("The desktop is asking for permission: allow the Remote desktop dialog on screen "
+                  f"(waiting up to {interactive_timeout} s)")
         if not token:
-            print("The desktop is asking for permission: allow the Remote desktop dialog on screen "
-                  f"(waiting up to {interactive_timeout} s)", file=sys.stderr, flush=True)
+            print(asking, file=sys.stderr, flush=True)
+        # A saved grant from another app makes the portal show the dialog, with no way to tell
+        # from here, so give the person the same time and say so if the answer is slow.
         res = self._request("Start", lambda o: GLib.Variant("(osa{sv})", (self.session, "", o)),
-                            interactive_timeout if not token else 15)
+                            interactive_timeout, notice=(GRANT_NOTICE_AFTER, asking) if token else None)
         if res.get("restore_token"):
             save_token(res["restore_token"])
         if not res.get("devices", 0) & POINTER or not res.get("devices", 0) & KEYBOARD:
@@ -209,5 +218,5 @@ class ScreenCast(_Portal):
 
     def forget(self):
         self.TOKEN.unlink(missing_ok=True)
-        if self.TOKEN in LEGACY:
-            LEGACY[self.TOKEN].unlink(missing_ok=True)
+        for p in LEGACY.get(self.TOKEN, ()):
+            p.unlink(missing_ok=True)
