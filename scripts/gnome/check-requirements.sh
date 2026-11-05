@@ -22,7 +22,7 @@ if ldconfig -p 2>/dev/null | grep -q 'libei.so.1 ' || [[ -e /usr/lib64/libei.so.
 [[ -x /usr/bin/python3 ]] && ok "/usr/bin/python3" "runs the scripts" || bad "/usr/bin/python3" "missing" need
 /usr/bin/python3 -s -c 'import gi; gi.require_version("Gio","2.0"); gi.require_version("GdkPixbuf","2.0"); from gi.repository import Gio, GdkPixbuf' 2>/dev/null \
     && ok "python3 gi (Gio, GdkPixbuf)" "scripts" || bad "python3 gi (Gio, GdkPixbuf)" "missing (python3-gobject, gdk-pixbuf2)" need
-introspect org.gnome.Shell /org/lcu/ComputerUse | grep -q org.lcu.ComputerUse \
+introspect org.gnome.Shell /org/lcu/ComputerUse | grep -q 'interface org\.lcu\.ComputerUse ' \
     && ok "Computer Use Bridge extension" "windows, fast screenshots" \
     || bad "Computer Use Bridge extension" "not running: lcu setup, then log in again or scripts/gnome/load-extension-live.py" need
 check_cmd gst-launch-1.0 "screenshot fallback, recording"
