@@ -367,7 +367,16 @@ or corrected during the drag: both raise the window, refuse a press on a panel
 after the release. A missed header grab is a drag inside the app (text selection,
 or a file drag in a file manager), so choose `--grab` from a fresh screenshot even
 more carefully than on KDE. The window follows the pointer without lag, so moves
-land exactly without corrections.
+land exactly without corrections. Do not call `window info` while a window is held
+(each call then takes about 0.7 s), and keep move targets at least 16 px inside the
+usable area: a release near the top edge snaps the window to the top half.
+
+**GNOME** has no drag commands; plain `input` drags work. Activate the window, read
+`window info` (`x/y/width/height` is the visible frame, `buffer` includes the CSD
+shadow), and for a resize press 5 px outside the visible frame, where GTK's resize
+zone is: `$L input move X Y down left rmove 2 2`, then `rmove` steps, `move` to the end
+point, `up left`. For a move, press on a blank header spot chosen from a fresh
+screenshot. Check the result with `window info`.
 
 `tests/test-drag-move.py MATCH --grab GX GY --output NEW_DIR` tests eight movement
 directions, a tiny drag and a no-op on an authorized test window, then restores
@@ -482,6 +491,10 @@ $L capture shot out.png --screencast                 # GNOME: without the extens
 
 Prints JSON with the file, pixel size, logical region and `pixels_per_logical`.
 
+**Re-crop after the layout changes.** A crop `--area` from an earlier shot can cut off
+a control once a panel opens or the window moves; derive it from a fresh window shot,
+and widen it if the control's edge is not visible.
+
 **When to include the cursor.** Shots you take to read the screen or find a
 target leave the cursor out (the default), so it never hides text or a button.
 Pass `--pointer` in two cases:
@@ -507,7 +520,8 @@ $L capture record out.webm --seconds 10 --screen DP-1             # one monitor
 $L capture record out.webm --seconds 10 --area 1600 200 800 450   # an area
 $L capture record out.mp4 --seconds 10 --window class:org.kde.dolphin
 $L capture record out.webm --seconds 300 --window class:codium &  # long take in the background;
-kill -INT <pid printed on its first line>                          # stop early, file stays valid
+kill -INT <pid printed on its first line>                          # stop early, file stays valid once the
+                                                                   # second JSON line ("file") is printed
 $L capture record out.webm --pointer ...                          # cursor drawn into the video
 $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps stills joined: small evidence files
 ```

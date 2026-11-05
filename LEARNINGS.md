@@ -28,7 +28,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 ## Entries
 
 ### 2026-10-29 · better · Custom sliders in Electron apps can ignore arrow keys; click the stop
-- Status: active
+- Status: promoted (SKILL.md "Input" notes)
 - Desktop: all
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
 - What: A web-drawn slider (a reasoning-effort picker in an Electron app) did not move on `key left` with the popup open, while a click on the track moved the handle.
@@ -36,7 +36,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: `kde-input.py key left` left the label unchanged; `kde-input.py move <handle_x-42> <y> click left` changed it to the next value, confirmed by a crop screenshot.
 
 ### 2026-10-29 · better · Re-crop after layout changes; a reused --area can cut off the target
-- Status: active
+- Status: promoted (SKILL.md "Screenshots", 2026-11-04)
 - Desktop: all
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
 - What: The same `--area` crop that showed an app's message box in one view cut off its left edge in another view of the app, hiding attached chips that had to be checked before sending.
@@ -44,7 +44,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: Two `kde-capture.py shot --area` calls with the same box: the first showed the whole composer, the second (different view) started mid-chip; a wider crop showed both chips.
 
 ### 2026-10-29 · new · GNOME Shell dialogs (Run a Command, Looking Glass, prompts) open on the monitor under the pointer
-- Status: active
+- Status: promoted (SKILL.md "Windows and focus")
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: Alt+F2 opened the Run a Command dialog on DP-1 while the pointer was there; a screenshot of the primary monitor showed only the dim backdrop.
@@ -52,7 +52,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: gnome-input.py key alt+f2 -> gnome-capture.py shot --screen eDP-1 showed no dialog, --screen DP-1 showed it; a11y find gnome-shell --name 'run a command' matched in both cases
 
 ### 2026-10-29 · broken · GTK4 accessibility boxes ignore container margins; centres can be 10-30 px off
-- Status: active
+- Status: promoted (SKILL.md toolkit table)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: In a zenity (GTK 4.16) dialog the No button's a11y box was at (0,149) in the window while it is drawn at (24,162); nested labels inherit the same origin. Sizes are correct.
@@ -60,7 +60,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: gnome-a11y.py find zenity --name no -> centre 678,513; screenshot shows the button spanning 642..762 x 504..546 (centre 702,525); OCR gave 702-ish
 
 ### 2026-10-29 · better · Never use OCR alone to confirm a dialog opened; the same words may be in another window
-- Status: active
+- Status: promoted (SKILL.md "Windows and focus")
 - Desktop: all
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: An OCR check for 'Run a Command' matched text in a chat window that quoted the phrase while the dialog itself had not opened on that monitor.
@@ -76,7 +76,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: gnome-a11y.py press <libadwaita app> --name '' --role button --depth 25 -> pressed first button; after fix -> exits 1 with 'must not be empty'
 
 ### 2026-10-29 · better · libadwaita apps need gnome-a11y.py --depth 25-30; default 12 finds nothing
-- Status: active
+- Status: promoted (SKILL.md a11y default depth)
 - Desktop: all
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: In a libadwaita (GTK4) app, find --name for a visible button returned no matches at the default depth 12; tree --depth 25 showed it.
@@ -110,7 +110,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: vscodium.appimage --force-renderer-accessibility --new-window file.txt -> status bar item 'Screen Reader Optimized' visible in a full-monitor screenshot
 
 ### 2026-10-29 · new · Super+Left/Right through gnome-input.py half-tiles the focused window exactly
-- Status: active
+- Status: promoted (SKILL.md "Input" notes)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: To put a window on the left half of a monitor, the GNOME tiling shortcut is simpler than computing geometry and accounts for the work area (panels).
@@ -208,7 +208,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: two input_probe.py windows on eDP-1 and DP-1, both active:true; activate P1 + key a -> only P1 logged a; activate P2 + key b -> only P2 logged b; pointer onto P2 + key c -> P1 logged c
 
 ### 2026-10-29 · new · GTK 4.24 accessibility boxes line up exactly with cosmic-comp window geometry
-- Status: active
+- Status: promoted (SKILL.md toolkit table)
 - Desktop: cosmic
 - Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
 - What: The gnome skill saw GTK 4.16 boxes ignore container margins. On GTK 4.24 a dialog's No button was at window (274,102) 53x34 in AT-SPI, exactly where the screenshot of the window (at cosmic-comp's reported x/y) drew it.
@@ -224,7 +224,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: CaptureSession(window=...) size (1707, 904); CaptureSession(output=DP-1) size (2560, 1440)
 
 ### 2026-10-29 · new · A second launch of a single-instance GTK app opens no new window
-- Status: active
+- Status: promoted (SKILL.md "launch")
 - Desktop: all
 - Seen on: cosmic-comp 1.10.0, xdg-desktop-portal-cosmic 1.10.0, libei 1.6.0, gtk4 4.24.1
 - What: Starting tests/dialog.py twice with the same application id (default GApplication flags) produced only one window: the second process handed its activation to the first and exited.
@@ -272,7 +272,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: tests/test-a11y.sh OCR step: FAIL (exit open) before; tesseract on format=gray -> 'No(96) No(96)'; after the change OCR No at 2458,640 = a11y centre, test 3/3 ok
 
 ### 2026-10-30 · better · Resize a client-decorated window by pointer: inside approach, small steps, measured grab points
-- Status: active
+- Status: promoted (window drag-resize)
 - App: libcosmic
 - Desktop: kde
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
@@ -326,7 +326,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: Isolated libcosmic app: min_size 380x400, direct geometry 190x200 -> actual 190x200. After restoring a normal size, drag-resize to 190x200 -> actual 380x400, exit 3 with target not reached. Normal targets 1160x700, 1000x600 and 1080x640 were reached exactly.
 
 ### 2026-10-30 · new · Exact resize targets can depend on window position
-- Status: active
+- Status: promoted (SKILL.md drag-resize exit 3)
 - App: it.mijorus.gearlever
 - Desktop: kde
 - Seen on: KWin 6.7.5, Plasma 6.7.5, libei 1.6.0, spectacle 6.7.5
@@ -343,7 +343,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: Authenticator (libcosmic), Gear Lever (GTK4/libadwaita), KWrite (Qt): all eight directions plus a 2-by-3-pixel move and a no-op passed per app (30 checks). Final tiny/near-edge/no-op checks passed on each app (9 checks), with unchanged sizes and restored pointer positions. A target 8 px from the edge snapped flush with the edge and returned exit 3; the 16 px margin retest reached its target. Original window geometries were restored. Regression tests cover obstruction, pointer interference, invalid/ambiguous targets and failed-grab cleanup.
 
 ### 2026-10-30 · new · After stopping a KDE recording, wait for the final JSON line before using the file
-- Status: active
+- Status: promoted (SKILL.md "Recording", re-verified 2026-11-04 on KWin 6.8.2)
 - Desktop: kde
 - Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
 - What: kill -INT on capture record returns at once, but the script then finalises gst output and re-encodes with ffmpeg (padding to wall-clock length). For an 80 s 2560x1440 take this took about a minute; reading the file earlier gave 'File ended prematurely' and a partial size.
@@ -359,7 +359,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: no --pointer: mpdecimate found no distinct frames during the drag; --pointer: distinct frames every ~33 ms from 9.4 to 13.5 s, extracted frames show cursor plus Dolphin drag icon over the target folder
 
 ### 2026-10-30 · broken · KDE drag-resize and drag-move refuse a window that fills the usable height
-- Status: active
+- Status: promoted (SKILL.md and window drag-resize panel check)
 - Desktop: kde
 - Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
 - What: Gear Lever (GTK4, client-side decorations) at y 0 with height equal to the usable area: drag-resize --edge bottom-left failed with 'bottom edge is off the usable area' (needs 2 px margin) and drag-move refused any destination (needs the whole frame 16 px inside). After nudging the frame to y 4, height 906, the left edge resized but the bottom press still did not start a resize: the CSD resize border lies under the panel. The top edge then worked.
@@ -383,7 +383,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: Warehouse COSMIC 700x700, eDP-1 <-> DP-1: --fast 0.103-0.105 s, default 0.404 s, --slow 1.005 s, all landed exactly, corrections 0; earlier raw input drags: 0.1 s -> 77,16 px short, 1 s (50x20 ms) -> 14,3 px short and 1.5 s long
 
 ### 2026-10-30 · better · OCR can match a word inside a neighbouring longer button; check alone and a pointer crop
-- Status: active
+- Status: promoted (SKILL.md OCR "alone")
 - Desktop: all
 - Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
 - What: Looking for a 'Comment' button next to a 'Comment and close issue' button, lcu ocr Comment returned only one match, alone false: the first word of the longer, destructive button. The real button was about 100 px to its left and was not returned at all.
@@ -391,7 +391,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: ocr Comment -> [2012,865] alone false (inside 'Comment and close issue'); screenshot placed the Comment button at 1914,863; pointer crop at 1914,863 showed the hand on 'Comment'
 
 ### 2026-10-30 · new · Ctrl+wheel zoom works with keydown ctrl ... keyup ctrl in one input call
-- Status: active
+- Status: promoted (SKILL.md "Input" examples)
 - Desktop: kde
 - Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
 - What: In LibreWolf on KDE, with the window activated and the pointer over the page, keydown ctrl + three scroll -1 + keyup ctrl zoomed 100% -> 130% (address-bar badge), and the same with scroll 1 went back to 100%.
@@ -399,7 +399,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: lcu input move 768 600 keydown ctrl scroll -1 x3 keyup ctrl -> 130% badge; scroll 1 x3 -> badge gone (100%)
 
 ### 2026-10-30 · better · Find a context menu's real position with window list --all before clicking its items
-- Status: active
+- Status: promoted (SKILL.md "Windows and focus")
 - Desktop: kde
 - Seen on: KWin 6.7.4, Plasma 6.7.4, libei ?, spectacle ?
 - What: A right-click near a monitor's bottom-right edge in LibreWolf opened the menu up and to the left of the pointer, so a crop below the pointer missed it. window list --all listed the menu as a librewolf window with an empty title and its exact geometry (942,255 357x381); OCR inside that area found the items.
@@ -407,7 +407,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: right-click at 1300,637 -> popup librewolf '' 942,255 357x381; ocr Copy in that area -> [973,278] alone true and [973,361] alone false; click -> clipboard held the selected text
 
 ### 2026-11-02 · new · GNOME: resize and move by pointer drag work with plain input down/move/up; CSD resize zone is in the shadow
-- Status: active
+- Status: promoted (SKILL.md "Windows and apps", 2026-11-04)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: drag-resize and drag-move are KDE-only. On GNOME a hand-built drag works: for a libadwaita/GTK4 window (CSD, buffer 25 px larger than the frame on each side) pressing 5 px outside the visible frame edge or corner, then 6 px steps, resized it exactly on all 8 handles; a press on a blank header spot and a 20-step glide moved it exactly with the size unchanged.
@@ -415,7 +415,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: Gear Lever 700x700: each of 8 handles shrank by exactly 60 px and grew back to 700x700; header drag (-200,+120) moved 1801,29 -> 1601,149 and back, size unchanged
 
 ### 2026-11-02 · broken · GNOME: buttons and wheel of a new input session are dropped until it has moved
-- Status: active
+- Status: promoted (input.py)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: Mutter dropped every click and wheel detent sent as the first actions of an lcu input call (no move first); waiting 100-300 ms did not help, a zero rmove did. Keys were unaffected. The old per-desktop test passed only because of timing. Fixed in input.py: on GNOME a session that has not moved sends rmove 0 0 before its first button or scroll.
@@ -423,7 +423,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: probe: 'click left', 'sleep 300 click left' -> 0 presses; 'rmove 0 0 click left' -> 1; bare 'scroll 1' -> 0 wheel; tests/test-input.sh 14 ok after the fix
 
 ### 2026-11-02 · broken · libcosmic apps ignore the pointer-enter position; a single jump misses their resize border
-- Status: active
+- Status: promoted (input.py)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: lcu input move sent one absolute motion; jumping into a libcosmic window (COSMIC Authenticator on GNOME) arrives as wl_pointer.enter only, which the app ignores, so a press right after hit no resize border (edges did nothing at any offset) while GTK windows resized. Any second motion fixes it, even to the same point. Fixed: the CLI move action and the start of drag repeat the motion once (move(settle=True)). Likely on KDE too; untested there.
@@ -431,7 +431,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: 'move X Y down left ...' -> 962x664 unchanged; 'move X Y move X Y down left ...' -> 902x664; after the fix all 8 edges/corners shrank 60 px and grew back exactly
 
 ### 2026-11-02 · broken · GNOME: wl-paste takes focus, and hangs while a keep-above window is focused
-- Status: active
+- Status: promoted (SKILL.md and input paste)
 - Desktop: gnome
 - Seen on: GNOME Shell 49.5, mutter 49.4, libei 1.5.0, gtk4 4.16.7
 - What: Reading the clipboard with wl-paste moved focus from a full-screen keep-above probe to the window below, so the keys that followed went there (paste and the input test's own clipboard read). With a keep-above window focused, wl-paste --list-types never returned (5 s timeout); windowed or full-screen without keep-above it answered in 20 ms. Fixed: paste restores focus before ctrl+v and refuses if it cannot; test-input.sh reads the clipboard before its safety checks and no longer sets keep-above on GNOME.
@@ -439,7 +439,7 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - Evidence: active before wl-paste: probe, after: the window below; wl-paste --list-types: windowed rc 0 in 0.02 s, keep-above rc 124 after 5 s, fullscreen-only rc 0
 
 ### 2026-11-02 · new · COSMIC: window drag-move and drag-resize by pointer; no geometry while a window is held
-- Status: active
+- Status: promoted (SKILL.md COSMIC drags, 2026-11-04)
 - Desktop: cosmic
 - Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
 - What: cosmic-comp sends no geometry for a window while a move or resize grab holds it: an open toplevel-info connection gets no events until the release, and a new one sees x/y null (after waiting its 0.6 s geometry timeout). An idle desktop can also lag geometry past a short timeout, so null is not a usable moving flag. The window follows the pointer without lag, and its resize zone reaches 3 px outside the frame for SSD (Qt), GTK and libcosmic windows alike.
@@ -453,3 +453,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Moving fullscreen or maximized windows between differently sized outputs retained the old dimensions because normal-window centering overwrote KWin destination sizing.
 - Do: After sendClientToScreen, let KWin size fullscreen and maximized windows; center only normal windows. Run tests/test-move-to-state.sh on a two-monitor desktop to check actual geometry as well as the state flag.
 - Evidence: KDE 6.8.2: the previous release failed all four fullscreen/maximized cross-monitor geometry checks; skipping normal-window centering for those states passed all four.
+
+### 2026-11-04 · broken · KDE screen-share grants belong to the app lcu runs under
+- Status: promoted (portal.py per-app tokens, SKILL.md "Recording", 2026-11-04)
+- Desktop: kde
+- Seen on: KWin 6.8.2, Plasma 6.8.2, libei 1.6.0, spectacle 6.8.2
+- What: The ScreenCast portal stores a restore token for the app id it reads from the caller's systemd scope (app-<id>-<n>.scope). A grant saved while lcu ran under one app was not accepted when lcu ran under another: the portal showed 'Choose screens to share with <app>' and record timed out. Seen after a distribution upgrade, when the same machine started running lcu from a desktop app's scope; likely on any portal backend that keys grants by app id.
+- Do: Nothing; portal.py now keeps one grant per app id and the error names the app. When record says the grant was not accepted, run capture record-setup with the user from that same app.
+- Evidence: PermissionStore Lookup screencast showed the saved token under app '' and two others under the desktop app's id; test-record.sh failed 4/4 with the old file, a screenshot during record showed the share dialog naming the app; with the per-app token file all 4 passed.
