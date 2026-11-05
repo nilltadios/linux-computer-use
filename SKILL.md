@@ -515,6 +515,9 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   "Allow restoring" ticked, press Share. Click it only when the user asked you
   to, verifying each click with a screenshot. A new monitor or layout can
   invalidate the grant; `record` then stops with a message instead of a dialog.
+  The grant belongs to the app lcu runs under (the portal reads it from the systemd
+  scope: `com.anthropic.Claude`, Codex, `org.kde.konsole`), so each one keeps its own
+  grant and needs its own `record-setup`; the error message names the app.
 - **GNOME** and **COSMIC** need no grant. `--window` records the window's own
   pixels: it follows the window and is not hidden by windows on top; the frame is
   a fixed size (GNOME: window top-left, rest black, possibly 2x on fractional scaling).
@@ -528,7 +531,7 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
 
 - **KDE:** nothing for input, windows, screenshots, a11y or OCR. Real-time video:
   `$L capture record-setup` (above). Revoke: delete
-  `~/.local/state/linux-computer-use/screencast-monitors.token`.
+  `~/.local/state/linux-computer-use/screencast-monitors.<app id>.token`.
 - **GNOME:** GNOME refuses window lists, screenshots and `Eval` to outside
   processes, so `scripts/gnome/extension/computer-use@lcu.local` (~200 lines)
   does them inside the shell and exports `org.lcu.ComputerUse` on
@@ -551,12 +554,12 @@ COSMIC skill (`~/.local/state/cosmic-computer-use/`) is picked up once.
 
 | Test | Checks | Expected | Last pass |
 |---|---|---|---|
-| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-10-30, GNOME 2026-11-02, COSMIC 2026-11-02 |
-| `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-10-30, GNOME 2026-11-02 |
-| `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-02, KWin 6.8.2 |
-| `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-10-30, GNOME 2026-11-02 |
-| `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-10-30, GNOME 2026-11-02 |
-| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-02 |
+| `tests/test-input.sh [MONITOR]` | full-screen GTK4 probe: clicks, shift/ctrl-click, drag, wheel, typing, ctrl+a, `paste` and clipboard restore | 14 `ok`, exit 0 (exit 2 = aborted before any input) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02, COSMIC 2026-11-02 |
+| `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
+| `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-learn.sh` | `lcu learn` on a copy of the log | 12 `ok` | 2026-11-04 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen
 window on MONITOR and has seen the pointer move over it, and checks focus again just

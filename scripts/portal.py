@@ -10,6 +10,7 @@ ScreenCast: KDE's real-time recording (Spectacle cannot record from a script). T
 restore-token scheme; KDE's tokens are single-use, so the newest is always kept.
 """
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -22,7 +23,36 @@ from gi.repository import Gio, GLib  # noqa: E402
 PORTAL = ("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop")
 RD = "org.freedesktop.portal.RemoteDesktop"
 STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "linux-computer-use"
-TOKEN = STATE / "remote-desktop.token"
+
+
+def _app_id():
+    """The app id the portal gives this process, from its systemd unit (the XDG naming
+    scheme app[-<launcher>]-<app id>-<random>.scope or app[-<launcher>]-<app id>[@<random>].service),
+    e.g. app-com.anthropic.Claude-704433.scope -> com.anthropic.Claude. "" when there is none."""
+    try:
+        unit = Path("/proc/self/cgroup").read_text().strip().rsplit("/", 1)[-1]
+    except OSError:
+        return ""
+    if not unit.startswith("app-"):
+        return ""
+    if unit.endswith(".scope"):
+        parts = unit[4:-6].split("-")[:-1]          # drop the random suffix
+    elif unit.endswith(".service"):
+        parts = unit[4:-8].split("@")[0].split("-")
+    else:
+        return ""
+    app = parts[-1] if parts else ""
+    return app.replace("\\x2d", "-") if re.fullmatch(r"[A-Za-z0-9_.\\]+", app) else ""
+
+
+def _per_app(name):
+    """A grant belongs to the app that asked for it: the portal shows the dialog again when
+    the same token comes from another app (Claude vs Codex vs a terminal). Keep one per app."""
+    app = _app_id()
+    return STATE / (f"{name}.{app}.token" if app else f"{name}.token")
+
+
+TOKEN = _per_app("remote-desktop")
 # grant saved by the earlier COSMIC skill; read once, then saved under STATE
 LEGACY = {TOKEN: STATE.parent / "cosmic-computer-use" / "remote-desktop.token"}
 KEYBOARD, POINTER = 1, 2
@@ -146,7 +176,7 @@ class RemoteDesktop(_Portal):
 class ScreenCast(_Portal):
     """Monitor streams through the ScreenCast portal, restored from a saved grant."""
     IFACE = "org.freedesktop.portal.ScreenCast"
-    TOKEN = STATE / "screencast-monitors.token"
+    TOKEN = _per_app("screencast-monitors")
 
     def start(self, interactive, pointer=False):
         """-> [(pipewire node, {position, size, ...})]. Without a saved grant and not
@@ -165,8 +195,9 @@ class ScreenCast(_Portal):
                             600 if interactive else 8, missing="timeout")
         if res == "timeout":
             self.close()
-            sys.exit("the saved screen-share grant was not accepted silently (the desktop showed a dialog); "
-                     "dismiss it and run `lcu capture record-setup` once with the person present")
+            app = _app_id() or "this terminal"
+            sys.exit(f"the saved screen-share grant for {app} was not accepted silently (the desktop showed a dialog); "
+                     f"dismiss it and run `lcu capture record-setup` once with the person present, from {app}")
         if res.get("restore_token"):
             save_token(res["restore_token"], self.TOKEN)
         return [(node, dict(props)) for node, props in res.get("streams", [])]
@@ -178,4 +209,5 @@ class ScreenCast(_Portal):
 
     def forget(self):
         self.TOKEN.unlink(missing_ok=True)
-        LEGACY[self.TOKEN].unlink(missing_ok=True)
+        if self.TOKEN in LEGACY:
+            LEGACY[self.TOKEN].unlink(missing_ok=True)
