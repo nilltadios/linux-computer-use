@@ -53,10 +53,13 @@ def _per_app(name):
 
 
 TOKEN = _per_app("remote-desktop")
-# Older grants, read in this order until a new one is saved under TOKEN: the file used before
-# grants were per app, which may already belong to this app, then the earlier COSMIC skill's.
+SCREENCAST_TOKEN = _per_app("screencast-monitors")
+# Older grants, read in this order until a new one is saved under the per-app name: the file
+# used before grants were per app, which may already belong to this app, then the earlier
+# COSMIC skill's.
 LEGACY = {TOKEN: tuple(p for p in (STATE / "remote-desktop.token",
-                                   STATE.parent / "cosmic-computer-use" / "remote-desktop.token") if p != TOKEN)}
+                                   STATE.parent / "cosmic-computer-use" / "remote-desktop.token") if p != TOKEN),
+          SCREENCAST_TOKEN: tuple(p for p in (STATE / "screencast-monitors.token",) if p != SCREENCAST_TOKEN)}
 GRANT_NOTICE_AFTER = 3  # s; a saved grant the portal accepts answers well before this
 KEYBOARD, POINTER = 1, 2
 PERSIST_UNTIL_REVOKED = 2
@@ -185,13 +188,16 @@ class RemoteDesktop(_Portal):
 class ScreenCast(_Portal):
     """Monitor streams through the ScreenCast portal, restored from a saved grant."""
     IFACE = "org.freedesktop.portal.ScreenCast"
-    TOKEN = _per_app("screencast-monitors")
+    TOKEN = SCREENCAST_TOKEN
 
     def start(self, interactive, pointer=False):
         """-> [(pipewire node, {position, size, ...})]. Without a saved grant and not
         interactive: exit 3 and show nothing."""
         token = load_token(self.TOKEN)
         if not token and not interactive:
+            app = _app_id() or "this terminal"
+            print(f"no saved screen-share grant for {app}; run `lcu capture record-setup` once "
+                  f"with the person present, from {app}", file=sys.stderr)
             sys.exit(3)
         self._create_session()
         opts = {"types": GLib.Variant("u", 1), "multiple": GLib.Variant("b", True),

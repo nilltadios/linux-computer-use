@@ -573,7 +573,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
-| `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 6 `ok` | 2026-11-05 |
+| `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 8 `ok` | 2026-11-05 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 17 `ok` | 2026-11-05 |
 
 `test-input.sh` refuses to send input unless the probe is the active, full-screen

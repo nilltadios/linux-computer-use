@@ -19,7 +19,16 @@ if not old_is_new:  # outside an app scope both names are the same file
 new.write_text("new"); print("ok lookup order")
 with contextlib.redirect_stdout(io.StringIO()): portal.forget_token()
 assert not new.exists() and not old.exists() and not cos.exists(); print("ok forget removes all")
-sc = portal.ScreenCast.__new__(portal.ScreenCast); sc.TOKEN.write_text("x"); sc.forget(); assert not sc.TOKEN.exists(); print("ok screencast forget")
+sc = portal.ScreenCast.__new__(portal.ScreenCast)
+e = io.StringIO()
+with contextlib.redirect_stderr(e):
+    try: sc.start(interactive=False); raise AssertionError("no exit")
+    except SystemExit as x: assert x.code == 3
+assert "record-setup" in e.getvalue(); print("ok no grant exits 3 and says why")
+sc_old = st / "screencast-monitors.token"
+sc_old.write_text("old"); assert portal.load_token(sc.TOKEN) == "old"; print("ok screencast falls back to the pre-per-app grant")
+sc.TOKEN.write_text("x"); assert portal.load_token(sc.TOKEN) == "x"
+sc.forget(); assert not sc.TOKEN.exists() and not sc_old.exists(); print("ok screencast forget removes all")
 class P(portal._Portal):
     def __init__(self): self.sender, self._n, self.bus = "s", 0, types.SimpleNamespace(signal_subscribe=lambda *a: 1, signal_unsubscribe=lambda *a: None)
     def _call(self, *a): return (), None
