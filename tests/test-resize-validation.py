@@ -177,5 +177,11 @@ class MoveValidation(unittest.TestCase):
         self.assertEqual(closed,[True])
 
 
+class ClosingWindows(unittest.TestCase):
+    def test_script_never_reads_min_size_of_a_deleted_window(self):
+        # KWin 6.6: InternalWindow::minSize on a closing window dereferences a null QWindow.
+        self.assertIn('w.deleted ? null : {width: w.minSize.width', window.JS)
+        self.assertIn('.filter(w => !w.deleted && (ALL ||', window.JS)
+
 if __name__ == '__main__':
     unittest.main()

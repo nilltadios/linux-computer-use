@@ -78,7 +78,7 @@ function info(w) {
             minimized: w.minimized, maximized: maximized(w), fullscreen: w.fullScreen, keepAbove: w.keepAbove,
             normal: w.normalWindow, dock: !!w.dock, desktop: !!w.desktopWindow, workspace: w.desktops.map(d => d.name),
             decorated: w.frameGeometry.width !== w.clientGeometry.width || w.frameGeometry.height !== w.clientGeometry.height, resizing: !!w.resize, moving: !!w.move,
-            min_size: {width: w.minSize.width, height: w.minSize.height},
+            min_size: w.deleted ? null : {width: w.minSize.width, height: w.minSize.height},  // minSize on a closing internal window segfaults KWin
             screen: w.output ? rect(w.output.geometry) : null,
             area: rect(workspace.clientArea(KWin.MaximizeArea, w))};
 }
@@ -96,7 +96,7 @@ function matches(w) {
 let out = {ok: true, windows: []};
 try {
     // stackingOrder is bottom..top; reverse so the topmost comes first
-    let wins = workspace.stackingOrder.slice().reverse().filter(w => ALL || w.normalWindow || w.dialog);
+    let wins = workspace.stackingOrder.slice().reverse().filter(w => !w.deleted && (ALL || w.normalWindow || w.dialog));
     if (ACTION === "list") {
         out.windows = wins.map(info);
     } else if (ACTION === "active") {
