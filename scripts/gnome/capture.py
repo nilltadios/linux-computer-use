@@ -43,6 +43,8 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf  # noqa: E402
 
+sys.path.insert(1, str(Path(__file__).resolve().parent.parent))
+import settle  # noqa: E402
 from gcu_common import (BRIDGE, BRIDGE_HELP, ScreenCast, bridge, bridge_ok, desktop_bounds,  # noqa: E402
                         get_prop, native_scale, outputs, primary_output, windows)
 
@@ -156,12 +158,19 @@ def cmd_screens(args):
 
 def cmd_shot(args):
     region, cleanup, _ = region_for(args)
+    extra = {}
+    one = lambda path: still(path, region, args.pointer, args.screencast)
     try:
-        size, f = still(args.out, region, args.pointer, args.screencast)
+        if settle.wanted(args):
+            (size, f), info = settle.wait(one, args.out, args.settle_quiet, args.settle_timeout, args.since,
+                                          scale=lambda r: r[1])
+            extra = {"settle": info}
+        else:
+            size, f = one(args.out)
     finally:
         cleanup()  # hand focus back only after the grab, so the raised window is in the picture
     print(json.dumps({"file": str(Path(args.out).resolve()), "size": size, "logical_region": region,
-                      "pixels_per_logical": round(f, 4)}))
+                      "pixels_per_logical": round(f, 4), **extra}))
 
 
 # --- low-fps recording ------------------------------------------------------------
@@ -254,6 +263,7 @@ def main():
             p.add_argument("--no-raise", action="store_true", help="crop where the window is without raising it")
         if name == "shot":
             p.add_argument("--screencast", action="store_true", help="grab through Mutter ScreenCast, not the extension")
+            settle.add_args(p)
         p.add_argument("--pointer", action="store_true")
         if name != "shot":
             p.add_argument("--seconds", type=float, default=10)

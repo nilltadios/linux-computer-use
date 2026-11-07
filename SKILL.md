@@ -147,6 +147,13 @@ agent's own chat app because the dialog was not where an earlier listing said. S
   `$L window active` for focus, then a screenshot of that spot to see the control.
   After an action that changes the UI, take a new screenshot before the next click.
   Coordinates from an old screenshot or listing are stale.
+  `$L input --window MATCH ...` runs the focus and hit-test checks itself and sends
+  nothing if they fail; use it for every click and key unless a drag must leave the
+  window. It does not replace looking at a fresh screenshot.
+- **Scripted coordinates can come out as 0 0.** In bash, `$((x+w/2))` with an empty
+  `x` and `w` is 0, not an error: a failed lookup once sent three plain clicks to the
+  corner of the user's chat app, while `--window` refused the same target. Use
+  `set -eu`, check the values, and pass `--window`.
 - **Keys go to the focused window, not the one under the pointer**, and hovering
   does not move focus. Run `$L window activate MATCH` right before `key`/`type`/
   `paste` and confirm with `$L window active`. If the user's chat or terminal keeps
@@ -244,7 +251,19 @@ $L input type "Hello, world!"                  # US keymap only
 $L input paste "Grüße, 你好 ✓"                  # any text: clipboard + ctrl+v, clipboard restored
 $L input paste-term "text"                     # same with ctrl+shift+v (terminals)
 $L input sleep 300                             # ms, between actions
+$L input --window class:org.kde.dolphin move 2336 610 click left   # check the target first, or send nothing
 ```
+
+**`--window MATCH` (first argument)** replaces the separate `window activate`, `window
+active` and `window at` calls. Before any event it checks that MATCH is exactly one
+window, focuses it if it is not focused, and checks every `move` point, the start of
+every `drag`, and the pointer for a click or scroll with no move first. Exit 2 means
+refused, with nothing sent, not even the actions before the bad point. On KDE the check
+is KWin's hit test, so a covering window is refused and the app's own menus are allowed
+even outside its frame; it adds about 0.5 s. On GNOME and COSMIC only the window's frame
+is checked, and the pointer is not. Points after the first in a `drag` are not checked,
+so a drag can end in another app. Leave `--window` off only for a manual `down`...`move`
+drag into another window.
 
 - Keys: letters, digits, `f1`..`f12`, `enter`, `esc`, `tab`, `space`,
   `backspace`, `delete`, `home`, `end`, `pageup`, `pagedown`, arrows (`up`...),
@@ -477,6 +496,39 @@ $L capture shot out.png --screencast                 # GNOME: without the extens
 
 Prints JSON with the file, pixel size, logical region and `pixels_per_logical`.
 
+**Wait with `--settle`, not `sleep`.**
+
+```bash
+$L capture shot next.png --window MATCH --no-raise --settle                # until the picture stops changing
+$L capture shot next.png --window MATCH --no-raise --since prev.png        # first until it differs from prev.png
+```
+
+Both grab until the picture has been unchanged for `--settle-quiet` (0.4 s), give up after
+`--settle-timeout` (10 s) and keep the last frame. The JSON gains `settle`: `settled`,
+`waited_s`, `frames`, and `changed` with `--since`. If it did not settle, stderr says so,
+so do not discard stderr. Changes under 20x20 logical px, such as a caret, are ignored; a
+larger spinner counts as movement, so it runs to the timeout.
+
+- Use `--since` when an app may take a while to react and you have a shot of the same
+  region. `changed: false` after the timeout means the action did nothing visible, which
+  is worth knowing; hovering can also count as a change.
+- Plain `--settle` needs at least two frames (KDE: about 2 s for a window, 3 s for a
+  monitor) and cannot see a change that starts after those frames. A plain shot with no
+  wait stays faster when the result is already on screen.
+- Measured on KDE 2026-11-07 with `tests/test-settle-live.sh`: for a change starting within
+  1 s, `--settle` took 2.1 s and `sleep 2.5` plus a shot 3.7 s, all correct. For a 3 s start,
+  `--since` was right 3/3 in 4.3 s; `--settle` and the sleep were both wrong 3/3. Those are
+  a test window's numbers, not a guarantee for other apps.
+
+**See the shot in the same step.** If your agent can send several tool calls in one message
+and runs them in order, send the shell command and the image view together instead of
+waiting for the command to return: `lcu ...; lcu capture shot NEW.png` plus a view of
+`NEW.png`. The view waits for the command. Checked with Claude Code's Bash and Read, and
+Codex can do both in one `exec`. **Use a new file name every time:** a failed command does
+not cancel the view, so an old name shows you an old picture that looks like the result.
+With a new name, a failure is an error instead. Do not send a click in the same message as
+a view: you must see the picture before deciding on the next click.
+
 **Re-crop after the layout changes.** A crop `--area` from an earlier shot can cut off
 a control once a panel opens or the window moves; derive it from a fresh window shot,
 and widen it if the control's edge is not visible.
@@ -573,6 +625,9 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
+| `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
+| `tests/test-settle.py` | settle logic, offline with a fake clock | 15 `ok` | 2026-11-07 |
 | `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 8 `ok` | 2026-11-05 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 17 `ok` | 2026-11-05 |
 

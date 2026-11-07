@@ -40,6 +40,8 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf  # noqa: E402
 
+sys.path.insert(1, str(Path(__file__).resolve().parent.parent))
+import settle  # noqa: E402
 from ccu_common import SHM_ORDER, CaptureSession, Desktop, pixbuf  # noqa: E402
 
 
@@ -159,8 +161,34 @@ def cmd_screens(args):
 
 def cmd_shot(args):
     desk = Desktop()
-    pb, f, region, extra = still(desk, args)
-    pb.savev(args.out, "png", [], [])
+    if settle.wanted(args):
+        # Raise once, not per frame: still() would otherwise flip focus back and forth on every grab.
+        prev, raised = desk.active(), False
+        if args.window and not args.no_raise and not args.own:
+            w = desk.find_one(args.window)
+            if not w["active"]:
+                desk.act(w, "activate")
+                raised = True
+                time.sleep(0.35)
+            args.no_raise = True
+
+        def one(path):
+            res = still(Desktop(), args)
+            res[0].savev(str(path), "png", [], [])
+            return res
+        try:
+            (pb, f, region, extra), info = settle.wait(one, args.out, args.settle_quiet, args.settle_timeout, args.since,
+                                                       scale=lambda r: r[1])
+        finally:
+            if raised and prev:
+                d2 = Desktop()
+                back = d2.find(f"id:{prev[0]['id']}")
+                if back:
+                    d2.act(back[0], "activate")
+        extra = {**extra, "settle": info}
+    else:
+        pb, f, region, extra = still(desk, args)
+        pb.savev(args.out, "png", [], [])
     print(json.dumps({"file": str(Path(args.out).resolve()), "size": [pb.get_width(), pb.get_height()],
                       "logical_region": region, "pixels_per_logical": round(f, 4), **extra}))
 
@@ -288,6 +316,7 @@ def main():
         if name == "shot":
             p.add_argument("--no-raise", action="store_true", help="crop where the window is without raising it")
             p.add_argument("--own", action="store_true", help="the window's own surface (works when covered, 1x)")
+            settle.add_args(p)
         p.add_argument("--pointer", action="store_true")
         if name != "shot":
             p.add_argument("--seconds", type=float, default=10)

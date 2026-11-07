@@ -7,6 +7,8 @@
   lcu capture shot OUT.png --area X Y W H            # logical desktop pixels
   lcu capture shot OUT.png --window class:org.kde.dolphin [--no-raise]
   lcu capture shot OUT.png --pointer ...             # include the cursor
+  lcu capture shot OUT.png --settle ...              # wait until the picture stops changing
+  lcu capture shot OUT.png --since PREV.png ...      # first wait until it differs from PREV.png, then settle
 
   lcu capture record-setup
       ONE-TIME, needs the person: KDE's share dialog opens once; they select ALL
@@ -54,6 +56,7 @@ from gi.repository import GdkPixbuf  # noqa: E402
 
 sys.path.insert(1, str(Path(__file__).resolve().parent.parent))
 from lcu_env import run_json, tool  # noqa: E402
+import settle  # noqa: E402
 
 
 # --- geometry -----------------------------------------------------------------
@@ -172,12 +175,19 @@ def cmd_screens(args):
 
 def cmd_shot(args):
     region, cleanup, win = region_for(args)
+    extra = {}
+    one = lambda path: grab(path, region, args.pointer, win if not args.no_raise else None)
     try:
-        size, f, source = grab(args.out, region, args.pointer, win if not args.no_raise else None)
+        if settle.wanted(args):
+            (size, f, source), info = settle.wait(one, args.out, args.settle_quiet, args.settle_timeout, args.since,
+                                                  scale=lambda r: r[1])
+            extra = {"settle": info}
+        else:
+            size, f, source = one(args.out)
     finally:
         cleanup()  # hand focus back only after the grab, so the raised window is in the picture
     print(json.dumps({"file": str(Path(args.out).resolve()), "size": size, "logical_region": region or bounds(),
-                      "pixels_per_logical": round(f, 4), "source": source}))
+                      "pixels_per_logical": round(f, 4), "source": source, **extra}))
 
 
 # --- low-fps recording without a dialog -------------------------------------------
@@ -323,6 +333,8 @@ def main():
         p.add_argument("--pointer", action="store_true")
         if name != "shot":
             p.add_argument("--seconds", type=float, default=10)
+        else:
+            settle.add_args(p)
     sub.add_parser("record-setup", help="one-time screen-share grant (needs the person)")
     args = ap.parse_args()
     {"screens": cmd_screens, "shot": cmd_shot, "frames": cmd_frames, "record": cmd_record,

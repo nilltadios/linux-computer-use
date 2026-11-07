@@ -12,6 +12,10 @@ comes from depends on the desktop (lcu detect):
           The first time COSMIC shows a "Remote desktop" dialog the user must allow;
           the restore token is saved in ~/.local/state/linux-computer-use/ and later
           calls reuse it without a dialog. `lcu input --setup` does that up front.
+--window checks, before any event is sent: MATCH is exactly one window, it has focus (activated if
+not), and every `move`/`drag` start point, or the pointer for a click with no move, is on it. KDE
+asks KWin's hit test, so a covering window is refused and the app's own menus are allowed; GNOME and
+COSMIC can only check the window's frame. Exit 2 = refused.
 LCU_INPUT=portal forces the portal route on any desktop whose portal has ConnectToEIS.
 
 Coordinates are the compositor's logical (desktop) pixels, the space `lcu capture
@@ -37,6 +41,7 @@ Usage (actions run in order in one connection):
   lcu input paste "héllo wörld ✓"       # any text: clipboard + ctrl+v, clipboard restored after
   lcu input paste-term "text"           # the same with ctrl+shift+v (terminals)
   lcu input sleep 250                   # milliseconds
+  lcu input --window MATCH ACTIONS...   # focus MATCH and check it first; refuses (no input sent) if wrong
   lcu input --list-regions              # print the absolute-pointer regions
   lcu input --setup | --forget          # COSMIC/portal: save / delete the input grant
 """
@@ -438,10 +443,84 @@ class Input:
         self.portal.close()
 
 
+# --- --window: the checks an agent would otherwise run as separate lookups ------------
+def planned_points(args):
+    """-> (points the actions touch, whether a pointer action comes before any move)."""
+    pts, a, at_pointer, moved_yet = [], list(args), False, False
+    takes_text = {"key", "keydown", "keyup", "type", "paste", "paste-term", "sleep", "scroll", "hscroll"}
+    while a:
+        w = a.pop(0)
+        try:
+            if w == "move":
+                pts.append((float(a[0]), float(a[1])))
+                a, moved_yet = a[2:], True
+            elif w == "drag":
+                pts.append((float(a[0]), float(a[1])))
+                a, moved_yet = a[4:], True
+            elif w == "rmove":
+                a = a[2:]
+                moved_yet = True  # relative: judged from the pointer, below
+                at_pointer = True
+            elif w in ("click", "down", "up"):
+                at_pointer = at_pointer or not moved_yet
+            elif w in takes_text:
+                at_pointer = at_pointer or (w in ("scroll", "hscroll") and not moved_yet)
+                a = a[1:]
+        except (IndexError, ValueError):
+            sys.exit(f"bad arguments for {w!r}; see --help")
+    return pts, at_pointer
+
+
+def refuse(msg):
+    print(f"lcu input --window: {msg}; no input sent", file=sys.stderr)
+    sys.exit(2)
+
+
+def check_target(match, args):
+    """Exactly one window, focused, and every point on it; otherwise exit 2 before any event."""
+    code, wins = lcu_env.run_json("window", "info", match, check=False)
+    if code or not isinstance(wins, list) or not wins:
+        refuse(f"no window matches {match}")
+    if len(wins) != 1:
+        refuse(f"{match} matches {len(wins)} windows; use the id: from `window list`")
+    wid = wins[0]["id"]
+    def focused():
+        return any(w["id"] == wid for w in lcu_env.run_json("window", "active"))
+    if not focused():  # activating a focused window could close its open menu
+        code, res = lcu_env.run_json("window", "activate", f"id:{wid}", check=False)
+        if code:
+            refuse(f"could not activate {match}: {res}")
+        end = time.monotonic() + 1.5
+        while not focused():
+            if time.monotonic() > end:
+                refuse(f"{match} did not take focus (a modal dialog or the compositor kept it)")
+            time.sleep(0.05)
+    win = lcu_env.run_json("window", "info", f"id:{wid}")[0]
+    pts, at_pointer = planned_points(args)
+    if at_pointer:
+        p = lcu_env.run_json("window", "pointer") if lcu_env.desktop() == "kde" else None
+        if p:
+            pts.insert(0, (p["x"], p["y"]))
+    for x, y in pts:
+        if lcu_env.desktop() == "kde":
+            hits = lcu_env.run_json("window", "at", x, y)
+            top = hits[0] if hits else None
+            if not top or (top["id"] != wid and top.get("pid") != win.get("pid")):
+                who = f"{top.get('class')} ({top.get('title', '')[:40]})" if top else "no window"
+                refuse(f"point {x:g},{y:g} is on {who}, not on {match}")
+        elif win.get("x") is None or not (win["x"] <= x < win["x"] + win["width"] and win["y"] <= y < win["y"] + win["height"]):
+            refuse(f"point {x:g},{y:g} is outside {match}")
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
         return
+    if argv[0] == "--window":
+        if len(argv) < 3:
+            sys.exit("--window needs MATCH and at least one action")
+        check_target(argv[1], argv[2:])
+        argv = argv[2:]
     if argv[0] in ("--setup", "--forget") and provider() != "portal":
         print(f"nothing to {argv[0][2:]}: input on {lcu_env.desktop()} needs no grant")
         return
