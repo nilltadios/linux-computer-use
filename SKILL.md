@@ -30,8 +30,10 @@ $L check           # every requirement for this desktop; changes nothing; exit 0
 Checked on KDE: Fedora 44, KWin 6.7.5, libei 1.6.0, Spectacle 6.7.5 (2026-10-30, all
 tests). GNOME: CentOS Stream 10, GNOME Shell 49.5, Mutter 49.4, libei 1.5.0
 (2026-11-02, all tests under `lcu`). COSMIC (CachyOS, cosmic-comp 1.10.0) was checked
-on 2026-10-29 with the earlier per-desktop skill whose code this one carries; the
-merged `lcu` has not yet run there (see Verifying).
+on 2026-10-29 with the earlier per-desktop skill whose code this one carries; under
+the merged `lcu` it passed `test-input.sh` (2026-11-02), and `window`, `capture shot
+--own` and `input --window ... drag` worked on cosmic-comp 1.11.0 (2026-11-08); the
+other tests have not run there yet (see Verifying).
 
 Detection order: `lcu --desktop kde|gnome|cosmic` or `LCU_DESKTOP`, then
 `XDG_CURRENT_DESKTOP` confirmed by the compositor's D-Bus name, then the D-Bus names

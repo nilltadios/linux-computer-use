@@ -416,3 +416,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: SKILL.md used to tell agents to check for updates and reread it, so an update cost two reads of the skill in one session. The check is removed; nothing in the skill updates it now, so an install with no outside update stays on its old version.
 - Do: Do not add an update step back to SKILL.md. Claude Code users who only use the skill: install the plugin and turn on auto-update for its marketplace; a new version normally loads the next session. Anyone editing the skill or adding shared lessons: keep a git clone and pull it from a session-start hook (git pull --ff-only, silent, with a timeout) so the first read is current; a pull that cannot fast-forward leaves the clone behind with no warning. Other agents: use their own start hook or pull by hand. If an install looks out of date, tell the user once rather than updating mid-session.
 - Evidence: SessionStart hook in a new session -> .git/FETCH_HEAD updated; test clone one commit behind -> pulled to latest; clone with a local commit -> unchanged; plugin install from GitHub -> skill found and lcu runs from the cached copy. Plugin auto-update has not been seen firing yet.
+
+### 2026-11-08 · new · Input drags work on COSMIC; the Remote desktop grant survives reboots
+- Status: active
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
+- What: Real pointer drags with 'input --window id:ID drag X1 Y1 X2 Y2' moved a libcosmic splitter (mouse_area with on_press) as expected. No Remote desktop dialog appeared, not even for the first input call after a reboot: the restore token saved in an earlier session was reused and rewritten. The app saw its first motion a few px after the press, so a 100 px drag moved the splitter about 97 px; likely the same for any iced/libcosmic drag handle.
+- Do: Use input --window ... drag for drag-to-resize tests on COSMIC; find the handle in a fresh 'capture shot --window MATCH --own' (1 px per logical px) and allow about 3 px of lift-off in assertions. Expect no dialog once a grant exists for the app.
+- Evidence: drag of 100 px -> splitter +97 px; drag of 60 px -> +57 px; drag past the limit -> clamped; no permission prompt this boot, token mtime updated at the first call
