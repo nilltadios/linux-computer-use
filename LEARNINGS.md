@@ -432,3 +432,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Two simultaneous 'capture record --screen' runs race for KDE's single-use restore token; the loser gets the share dialog and exits 1 (one parallel pair worked, the next failed). Added 'capture record --all': one session, one GStreamer branch per shared monitor, composed in the desktop layout.
 - Do: Use 'lcu capture record OUT.mp4 --all' to film several monitors at once; never start two record runs together. Written into SKILL.md (Recording) and tests/test-record.sh.
 - Evidence: parallel --screen eDP-1 + --screen DP-1 -> b=1 'grant ... not accepted silently'; record --all --seconds 8 -> rc 0, 3838x1298, 7.97 s; tests/test-record.sh -> 5 ok (all: 3.0 s, 3838x1298)
+
+### 2026-11-09 · new · record --all on GNOME; .mp4 recordings were WebM inside
+- Status: promoted
+- Desktop: gnome
+- Seen on: GNOME Shell 49.10, CentOS Stream 10, two monitors at 1.25 and 1.67 scale
+- What: GNOME's 'capture record' always wrote VP8/WebM, even to a .mp4 name. OpenH264 cannot encode on EL10 because noopenh264 is a stub; ffmpeg's libx264 works. Added '--all' on GNOME: one Mutter RecordArea over the whole desktop, scaled to fit 3840x2160.
+- Do: Use 'lcu capture record OUT.webm --all' (or .mp4) to film every monitor on GNOME. .mp4 is converted after recording with libx264 when ffmpeg has it, else OpenH264. Written into SKILL.md (Recording) and tests/test-record.sh.
+- Evidence: record x.mp4 before the fix -> ffprobe matroska,webm vp8; ffmpeg testsrc -c:v libopenh264 -> 'Unable to create encoder'; record --all -> 3840x1200 vp8 and h264; tests/test-record.sh -> 5 ok (all: 2.8 s, 3840x1200)

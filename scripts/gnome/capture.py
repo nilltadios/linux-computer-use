@@ -9,11 +9,13 @@
   lcu capture shot OUT.png --pointer ...            # include the cursor
   lcu capture shot OUT.png --screencast ...         # force the ScreenCast path
 
-  lcu capture record OUT.webm [--seconds 10] [--screen DP-1 | --area X Y W H | --window MATCH]
-      Real-time VP8 video from Mutter's ScreenCast API (PipeWire -> GStreamer). No portal,
+  lcu capture record OUT.webm [--seconds 10] [--screen DP-1 | --area X Y W H | --window MATCH | --all]
+      Real-time video from Mutter's ScreenCast API (PipeWire -> GStreamer). No portal,
       no grant: --screen records that monitor, --area exactly that area, --window that
-      window's own contents (follows it when moved, even if covered). Default: the
-      monitor of the active window. Stops after --seconds or on SIGINT/SIGTERM (clean file).
+      window's own contents (follows it when moved, even if covered), --all every monitor
+      in one video placed like the desktop (black where no monitor is), scaled to fit
+      3840x2160. Default: the monitor of the active window. .webm is VP8; .mp4 is H.264
+      (libx264 or OpenH264, converted after recording). Stops after --seconds or on SIGINT/SIGTERM.
 
   lcu capture frames OUT.mp4 --seconds 10 [--screen|--area|--window ...]
       Repeated stills (a few fps) joined with ffmpeg. For "what happened" evidence.
@@ -196,9 +198,20 @@ def cmd_frames(args):
 
 
 # --- real-time recording -----------------------------------------------------------
+def h264_args():
+    """libx264 when ffmpeg has it, else OpenH264 (on EL/Fedora the noopenh264 stub cannot encode)."""
+    enc = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    if " libx264 " in enc:
+        return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+    return ["-c:v", "libopenh264", "-b:v", "12M"]
+
+
 def cmd_record(args):
     sc = ScreenCast(recording=True)
-    target = {}
+    target, size = {}, None
+    mp4 = args.out.lower().endswith(".mp4")
+    td = Path(tempfile.mkdtemp(prefix="lcu-record-")) if mp4 else None
+    raw = str(td / "raw.webm") if mp4 else args.out  # gst writes WebM; .mp4 is converted afterwards
     if args.screen:
         if args.screen not in outputs():
             sys.exit(f"no output {args.screen}; have {', '.join(outputs())}")
@@ -207,6 +220,17 @@ def cmd_record(args):
     elif args.area:
         sc.area(*args.area, pointer=args.pointer)
         target = {"area": args.area}
+    elif args.all:
+        bx, by, bw, bh = desktop_bounds()
+        native = max(o[4] for o in outputs(with_scale=True).values())
+        # one scale for the canvas: no upscaling past the sharpest monitor, and at most
+        # 3840x2160 (OpenH264 refuses wider frames; same rule as KDE's --all)
+        f = min(native, 3840 / bw, 2160 / bh)
+        size = (max(2, int(round(bw * f)) // 2 * 2), max(2, int(round(bh * f)) // 2 * 2))
+        sc.area(bx, by, bw, bh, pointer=args.pointer)
+        lay = outputs()
+        target = {"monitors": [{"name": n, "position": v[:2], "size": v[2:]} for n, v in lay.items()],
+                  "pixels_per_logical": round(f, 4), "logical_region": [bx, by, bw, bh]}
     elif args.window:
         w, _ = window_geometry(args.window, activate=False)
         sc.window(w["id"], args.pointer)
@@ -218,9 +242,10 @@ def cmd_record(args):
         target = {"screen": mon}
     node = sc.start()
     pipe = ["gst-launch-1.0", "-e", "pipewiresrc", f"path={node}", "do-timestamp=true", "keepalive-time=1000",
-            "always-copy=true", "!", "videorate", "!", "video/x-raw,framerate=30/1", "!", "videoconvert", "!", "queue",
-            "!", "vp8enc", "deadline=1", "cpu-used=8", "target-bitrate=6000000", "!", "webmmux",
-            "!", "filesink", f"location={args.out}"]
+            "always-copy=true", "!", "videorate", "!", "video/x-raw,framerate=30/1", "!", "videoconvert", "!",
+            *(["videoscale", "!", f"video/x-raw,width={size[0]},height={size[1]}", "!"] if size else []), "queue",
+            "!", "vp8enc", "deadline=1", "cpu-used=8", f"target-bitrate={12000000 if size else 6000000}", "!", "webmmux",
+            "!", "filesink", f"location={raw}"]
     gst = subprocess.Popen(pipe, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     stop = lambda *_: gst.poll() is None and gst.send_signal(signal.SIGINT)  # -e: EOS, file is finalised
     signal.signal(signal.SIGINT, stop)
@@ -233,10 +258,18 @@ def cmd_record(args):
     gst.wait(timeout=30)
     params = sc.params()
     sc.stop()
-    if not Path(args.out).exists() or Path(args.out).stat().st_size == 0:
+    if not Path(raw).exists() or Path(raw).stat().st_size == 0:
         sys.exit(f"gst-launch produced no video: {gst.stderr.read()[-800:]}")
+    if mp4:
+        try:  # even sizes and at most 3840x2160 for OpenH264
+            subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw, "-vf",
+                            "scale='min(iw,3840)':'min(ih,2160)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+                            *h264_args(), "-pix_fmt", "yuv420p", args.out], check=True)
+        finally:
+            shutil.rmtree(td, ignore_errors=True)
     print(json.dumps({"file": str(Path(args.out).resolve()), **target,
-                      "stream": {k: list(v) if isinstance(v, tuple) else v for k, v in params.items()}}))
+                      "stream": {k: list(v) if isinstance(v, tuple) else v for k, v in params.items()}},
+                     default=list))
 
 
 def cmd_record_setup(args):
@@ -259,6 +292,8 @@ def main():
         g.add_argument("--screen")
         g.add_argument("--area", type=float, nargs=4, metavar=("X", "Y", "W", "H"))
         g.add_argument("--window", metavar="MATCH", help="see `lcu window --help` for MATCH syntax")
+        if name == "record":
+            g.add_argument("--all", action="store_true", help="every monitor in one video, placed like the desktop")
         if name != "record":
             p.add_argument("--no-raise", action="store_true", help="crop where the window is without raising it")
         if name == "shot":

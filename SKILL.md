@@ -563,7 +563,7 @@ $L capture record out.webm --seconds 300 --window class:codium &  # long take in
 kill -INT <pid printed on its first line>                          # stop early, file stays valid once the
                                                                    # second JSON line ("file") is printed
 $L capture record out.webm --pointer ...                          # cursor drawn into the video
-$L capture record out.mp4 --seconds 10 --all                      # KDE: every monitor, one video in the desktop layout
+$L capture record out.mp4 --seconds 10 --all                      # KDE, GNOME: every monitor, one video in the desktop layout
 $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps stills joined: small evidence files
 ```
 
@@ -573,6 +573,8 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
 - Videos are as long as the recording took: when nothing changes, the last frame
   is repeated (KDE pads the end; COSMIC writes a constant rate).
 - `.webm` gives VP8/VP9, `.mp4` H.264 (OpenH264; Fedora's ffmpeg has no libx264).
+  GNOME records WebM and converts `.mp4` afterwards, with libx264 when ffmpeg has it
+  (EL10 + RPM Fusion: OpenH264 is the `noopenh264` stub there and cannot encode).
 - **KDE** records the monitor that holds the target and crops it, so `--window`
   raises the window without focus (else whatever covers it is filmed) and puts the
   previous top window back at the end; a window moved mid-recording is not
@@ -593,6 +595,10 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   GStreamer pipeline, and composes them into one video placed like the desktop
   (black where no monitor is), at one scale of at most 3840x2160 (OpenH264 refuses
   wider frames). The JSON lists the monitors and `pixels_per_logical`.
+- **GNOME `--all`** records the whole desktop as one Mutter area (no grant, no
+  per-monitor branches), scaled like KDE's to at most 3840x2160; black fills the gaps
+  between monitors of different sizes. The JSON lists the monitors and
+  `pixels_per_logical` (2026-11-09).
 - **GNOME** and **COSMIC** need no grant. `--window` records the window's own
   pixels: it follows the window and is not hidden by windows on top; the frame is
   a fixed size (GNOME: window top-left, rest black, possibly 2x on fractional scaling).
@@ -635,7 +641,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
-| `tests/test-record.sh` | each monitor, an area, `--all` (KDE) and a probe window; duration and size | all `ok` (KDE needs the grant; 5 on KDE with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-record.sh` | each monitor, an area, `--all` (KDE, GNOME) and a probe window; duration and size | all `ok` (KDE needs the grant; 5 with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-09 (EL10) |
 | `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle.py` | settle logic, offline with a fake clock | 15 `ok` | 2026-11-07 |
