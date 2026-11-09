@@ -24,6 +24,13 @@
       active window. Stops after --seconds or on SIGINT/SIGTERM (clean file).
       Without a saved grant it exits with code 3 instead of showing a dialog.
 
+  lcu capture record OUT.mp4 --all [--seconds 10]
+      Every shared monitor in ONE portal session and one pipeline, composed into one
+      video laid out like the desktop (black where no monitor is); all branches start
+      with the same pipeline, so they stay in step.
+      Use this instead of two `record --screen` runs at once: KDE's restore token is
+      single-use, so simultaneous runs race for it and one gets the share dialog.
+
   lcu capture frames OUT.mp4 --seconds 10 [--screen|--area|--window ...]
       No dialog: repeated Spectacle stills (~1.5 fps) joined with ffmpeg. Use for
       "what happened on screen" evidence, not for smooth video.
@@ -233,7 +240,9 @@ def cmd_record_setup(args):
 def cmd_record(args):
     from portal import ScreenCast
     region, restore_top = None, (lambda: None)
-    if args.screen:
+    if args.all:
+        pass
+    elif args.screen:
         region = outputs().get(args.screen) or sys.exit(f"no output {args.screen}")
     elif args.area:
         region = tuple(args.area)
@@ -254,6 +263,8 @@ def cmd_record(args):
         region = outputs()[act[0]["output"]]
     p = ScreenCast()
     streams = p.start(interactive=False, pointer=args.pointer)
+    if args.all:
+        return record_all(args, p, streams)
     cx, cy = region[0] + region[2] / 2, region[1] + region[3] / 2
 
     def holds(props):
@@ -317,6 +328,81 @@ def cmd_record(args):
     print(json.dumps({"file": str(Path(args.out).resolve()), "monitor": props, "logical_region": region}, default=list))
 
 
+def record_all(args, p, streams):
+    """Every shared monitor from ONE portal session (one use of the single-use restore
+    token), one GStreamer pipeline with a branch per monitor, then one video laid out like
+    the desktop. Separate `record --screen` runs started together race for the token."""
+    if not streams:
+        p.close()
+        sys.exit("the portal shared no monitors (rerun record-setup with all monitors)")
+    fds = [p.pipewire_fd() for _ in streams]  # one PipeWire remote per branch
+    td = Path(tempfile.mkdtemp(prefix="lcu-rec-"))
+    pipe = ["gst-launch-1.0", "-e"]
+    for i, ((node, _props), fd) in enumerate(zip(streams, fds)):
+        pipe += ["pipewiresrc", f"fd={fd}", f"path={node}", "do-timestamp=true", "keepalive-time=1000",
+                 "!", "videorate", "!", "video/x-raw,framerate=30/1", "!", "videoconvert", "!", "queue",
+                 "!", "vp8enc", "deadline=1", "cpu-used=8", "target-bitrate=6000000", "!", "webmmux",
+                 "!", "filesink", f"location={td}/m{i}.webm"]
+    gst = subprocess.Popen(pipe, pass_fds=fds, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    stop = lambda *_: gst.poll() is None and gst.send_signal(signal.SIGINT)
+    signal.signal(signal.SIGINT, stop)
+    signal.signal(signal.SIGTERM, stop)
+    print(json.dumps({"recording": str(Path(args.out).resolve()), "pid": os.getpid()}), flush=True)
+    t0 = time.monotonic()
+    try:
+        gst.wait(timeout=args.seconds)
+    except subprocess.TimeoutExpired:
+        stop()
+    wall = time.monotonic() - t0
+    gst.wait(timeout=30)
+    p.close()
+    raws = [td / f"m{i}.webm" for i in range(len(streams))]
+    if not all(r.exists() and r.stat().st_size for r in raws):
+        sys.exit(f"gst-launch produced no video for some monitor: {gst.stderr.read()[-800:]}")
+
+    def probe(f):
+        j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                       "stream=width,start_time:format=duration", "-of", "json", str(f)],
+                                      capture_output=True, text=True).stdout)
+        s = j["streams"][0]
+        return s["width"], float(s.get("start_time") or 0), float(j["format"].get("duration") or 0)
+    info = [probe(r) for r in raws]
+    t_first = min(i[1] for i in info)
+    # layout in logical px -> one scale for the whole canvas: no upscaling past the
+    # sharpest monitor, and at most 3840x2160 (OpenH264 refuses wider frames)
+    boxes = [tuple(pr.get("position", (0, 0))) + tuple(pr.get("size", (0, 0))) for _n, pr in streams]
+    bx, by = min(b[0] for b in boxes), min(b[1] for b in boxes)
+    bw, bh = max(b[0] + b[2] for b in boxes) - bx, max(b[1] + b[3] for b in boxes) - by
+    native = max(i[0] / b[2] for i, b in zip(info, boxes) if b[2])
+    f = min(native, 3840 / bw, 2160 / bh)
+    ev = lambda v: max(2, int(round(v * f)) // 2 * 2)
+    chains, layout = [], []
+    for k, ((_w, start, dur), (x, y, w, h)) in enumerate(zip(info, boxes)):
+        lead = start - t_first  # WebM usually starts at 0; pad if a branch's file starts later
+        tail = wall - (lead + dur)
+        c = f"[{k}:v]setpts=PTS-STARTPTS,scale={ev(w)}:{ev(h)},setsar=1"
+        if lead > 0.02:
+            c += f",tpad=start_mode=clone:start_duration={lead:.3f}"
+        if tail > 0.15:  # KWin sends no frames while a monitor is still
+            c += f",tpad=stop_mode=clone:stop_duration={tail:.3f}"
+        chains.append(c + f"[v{k}]")
+        layout.append(f"{ev(x - bx)}_{ev(y - by)}")
+    if len(streams) > 1:
+        graph = ";".join(chains) + ";" + "".join(f"[v{k}]" for k in range(len(streams))) + \
+            f"xstack=inputs={len(streams)}:layout={'|'.join(layout)}:fill=black,format=yuv420p[out]"
+    else:
+        graph = chains[0].replace("[v0]", ",format=yuv420p[out]")
+    codec = ["-c:v", "libopenh264", "-b:v", "12M"] if args.out.endswith(".mp4") \
+        else ["-c:v", "libvpx", "-b:v", "8M", "-deadline", "realtime", "-cpu-used", "8"]
+    cmd = ["ffmpeg", "-loglevel", "error", "-y"]
+    for r in raws:
+        cmd += ["-i", str(r)]
+    subprocess.run(cmd + ["-filter_complex", graph, "-map", "[out]", "-t", f"{wall:.3f}", *codec, args.out], check=True)
+    shutil.rmtree(td, ignore_errors=True)
+    print(json.dumps({"file": str(Path(args.out).resolve()), "monitors": [pr for _n, pr in streams],
+                      "pixels_per_logical": round(f, 4), "logical_region": [bx, by, bw, bh]}, default=list))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -328,7 +414,10 @@ def main():
         g.add_argument("--screen")
         g.add_argument("--area", type=float, nargs=4, metavar=("X", "Y", "W", "H"))
         g.add_argument("--window", metavar="MATCH", help="see `lcu window --help` for MATCH syntax")
-        if name != "record":
+        if name == "record":
+            g.add_argument("--all", action="store_true",
+                           help="every shared monitor at once, laid out like the desktop, in one video")
+        else:
             p.add_argument("--no-raise", action="store_true", help="crop where the window is without raising it")
         p.add_argument("--pointer", action="store_true")
         if name != "shot":

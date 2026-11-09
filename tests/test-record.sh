@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Recording check: 3 s of each monitor, an area, and a probe window; checks duration and size.
+# Recording check: 3 s of each monitor, an area, all monitors at once (--all, KDE), and a probe window;
+# checks duration and size.
 # KDE needs a saved screen-share grant (`lcu capture record-setup`); GNOME and COSMIC need none.
 # Usage: tests/test-record.sh [OUTDIR]     Expected: every line "ok", exit 0.
 set -uo pipefail
@@ -16,6 +17,7 @@ run() {  # name ext args...
 }
 for o in $("$L" capture screens | jq -r '.[].name'); do run "screen-$o" webm --screen "$o"; done
 run area webm --area 100 100 640 360
+[[ $("$L" detect | jq -r .desktop) == kde ]] && run all mp4 --all   # every monitor in one session (KDE only)
 $PY "$here/tests/input_probe.py" "$(mktemp)" 30 --windowed 2>/dev/null & p=$!
 "$L" window wait-stable $M >/dev/null && run window webm --window $M
 "$L" window close $M >/dev/null 2>&1; kill $p 2>/dev/null

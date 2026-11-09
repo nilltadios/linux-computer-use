@@ -424,3 +424,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: Real pointer drags with 'input --window id:ID drag X1 Y1 X2 Y2' moved a libcosmic splitter (mouse_area with on_press) as expected. No Remote desktop dialog appeared, not even for the first input call after a reboot: the restore token saved in an earlier session was reused and rewritten. The app saw its first motion a few px after the press, so a 100 px drag moved the splitter about 97 px; likely the same for any iced/libcosmic drag handle.
 - Do: Use input --window ... drag for drag-to-resize tests on COSMIC; find the handle in a fresh 'capture shot --window MATCH --own' (1 px per logical px) and allow about 3 px of lift-off in assertions. Expect no dialog once a grant exists for the app.
 - Evidence: drag of 100 px -> splitter +97 px; drag of 60 px -> +57 px; drag past the limit -> clamped; no permission prompt this boot, token mtime updated at the first call
+
+### 2026-11-08 · new · record --all films every monitor from one portal session
+- Status: promoted
+- Desktop: kde
+- Seen on: KWin 6.8.2, Plasma 6.8.2, libei 1.6.0, spectacle 6.8.2
+- What: Two simultaneous 'capture record --screen' runs race for KDE's single-use restore token; the loser gets the share dialog and exits 1 (one parallel pair worked, the next failed). Added 'capture record --all': one session, one GStreamer branch per shared monitor, composed in the desktop layout.
+- Do: Use 'lcu capture record OUT.mp4 --all' to film several monitors at once; never start two record runs together. Written into SKILL.md (Recording) and tests/test-record.sh.
+- Evidence: parallel --screen eDP-1 + --screen DP-1 -> b=1 'grant ... not accepted silently'; record --all --seconds 8 -> rc 0, 3838x1298, 7.97 s; tests/test-record.sh -> 5 ok (all: 3.0 s, 3838x1298)

@@ -563,6 +563,7 @@ $L capture record out.webm --seconds 300 --window class:codium &  # long take in
 kill -INT <pid printed on its first line>                          # stop early, file stays valid once the
                                                                    # second JSON line ("file") is printed
 $L capture record out.webm --pointer ...                          # cursor drawn into the video
+$L capture record out.mp4 --seconds 10 --all                      # KDE: every monitor, one video in the desktop layout
 $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps stills joined: small evidence files
 ```
 
@@ -584,6 +585,14 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   The grant belongs to the app lcu runs under (the portal reads it from the systemd
   scope: `com.anthropic.Claude`, Codex, `org.kde.konsole`), so each one keeps its own
   grant and needs its own `record-setup`; the error message names the app.
+- **KDE, several monitors at once: use `--all`, never two `record` runs together.**
+  The restore token is single-use and replaced on every session, so two runs
+  started at the same moment race for it: one wins, the other gets the share
+  dialog and exits 1 (seen 2026-11-08: one parallel pair worked, the next failed).
+  `--all` opens one session, records each shared monitor on its own branch of one
+  GStreamer pipeline, and composes them into one video placed like the desktop
+  (black where no monitor is), at one scale of at most 3840x2160 (OpenH264 refuses
+  wider frames). The JSON lists the monitors and `pixels_per_logical`.
 - **GNOME** and **COSMIC** need no grant. `--window` records the window's own
   pixels: it follows the window and is not hidden by windows on top; the frame is
   a fixed size (GNOME: window top-left, rest black, possibly 2x on fractional scaling).
@@ -626,7 +635,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
-| `tests/test-record.sh` | each monitor, an area and a probe window; duration and size | all `ok` (KDE needs the grant) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
+| `tests/test-record.sh` | each monitor, an area, `--all` (KDE) and a probe window; duration and size | all `ok` (KDE needs the grant; 5 on KDE with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle.py` | settle logic, offline with a fake clock | 15 `ok` | 2026-11-07 |
