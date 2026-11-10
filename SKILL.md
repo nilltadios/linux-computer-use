@@ -603,10 +603,43 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   pixels: it follows the window and is not hidden by windows on top; the frame is
   a fixed size (GNOME: window top-left, rest black, possibly 2x on fractional scaling).
 - Default target: the monitor of the active window.
+- A recording shows what the compositor rendered for it, not what reached the panel: for
+  "does this animation look right on screen" use `lcu panel record` (next section).
 - To catch a glitch that lasts a second or two, record `--screen` while
   reproducing, extract frames (`ffmpeg -i rec.webm -vf fps=20 f/%04d.png`) and
   compare each frame with the last per region; single screenshots miss the moment.
 - 2560x1440 at 30 fps costs about one CPU core on COSMIC (Python copies frames).
+
+## What the panel really shows: `lcu panel`
+
+`capture record` and every screenshot receive frames the compositor renders for the capture.
+Those are complete even when the real screen is not: a compositor repaints only the regions an
+app reports as damaged, so an app that under-reports damage shows stale or back-and-forth
+frames on the panel while its recording looks perfect. **A recording or screenshot therefore
+cannot prove that an animation is right on screen.** `lcu panel` reads the buffer the monitor
+is scanning out, on any desktop:
+
+```bash
+$L panel status                                   # ready? (exit 3 = not set up) and the monitors
+$L panel record out.mkv --all --seconds 6         # every monitor side by side, 60 fps, half size
+$L panel record out.mkv --screen DP-1 --scale 1 --fps 30   # pixel-exact frames of one monitor
+```
+
+- One-time setup, with the person: `$L panel setup` builds a small helper and installs it as
+  `/usr/local/libexec/lcu-panel-grab` with one file capability (CAP_SYS_ADMIN, which the kernel
+  requires for the scanout buffer); it asks for their sudo password. Never run it for them.
+  Tell them first that afterwards any program of their user can read the screen through the
+  helper without a share dialog. The grant survives reboots and updates; `panel setup --remove`
+  undoes it. The helper only hands out the buffer; `scripts/panel.py` decodes it on the GPU
+  (EGL, no window) and can change without a new setup. Exit 3 with "protocol" in the message
+  means the helper itself changed: setup again.
+- `.mkv` is lossless (Ut Video); `.mp4`/`.webm` are smaller. `--scale` defaults to 0.5 because
+  full-size lossless video at 60 fps is more than the encoder keeps up with; the JSON's `late`
+  counts ticks sampled behind schedule (should be 0) and `flips` how often each monitor was
+  given a new buffer. The mouse pointer is not in the video (separate hardware plane).
+- To judge motion, extract the frames and compare consecutive ones (shift, not just "differs"):
+  a picture that steps backwards is stale frames. On KDE 2026-11-09 an app that damaged 1 px
+  per step showed 46 and 71 backward steps in 6 s here and none in `capture record`.
 
 ## One-time setup per desktop
 
@@ -644,6 +677,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-record.sh` | each monitor, an area, `--all` (KDE, GNOME) and a probe window; duration and size | all `ok` (KDE needs the grant; 5 with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-09 (EL10) |
 | `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
+| `tests/test-panel.sh` | `panel record --all` from the real scanout: frame count, no late ticks | 3 `ok` (exit 77 = not set up) | KDE 2026-11-09 (Fedora 45, AMD) |
 | `tests/test-settle.py` | settle logic, offline with a fake clock | 15 `ok` | 2026-11-07 |
 | `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 8 `ok` | 2026-11-05 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 17 `ok` | 2026-11-05 |

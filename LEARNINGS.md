@@ -440,3 +440,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: GNOME's 'capture record' always wrote VP8/WebM, even to a .mp4 name. OpenH264 cannot encode on EL10 because noopenh264 is a stub; ffmpeg's libx264 works. Added '--all' on GNOME: one Mutter RecordArea over the whole desktop, scaled to fit 3840x2160.
 - Do: Use 'lcu capture record OUT.webm --all' (or .mp4) to film every monitor on GNOME. .mp4 is converted after recording with libx264 when ffmpeg has it, else OpenH264. Written into SKILL.md (Recording) and tests/test-record.sh.
 - Evidence: record x.mp4 before the fix -> ffprobe matroska,webm vp8; ffmpeg testsrc -c:v libopenh264 -> 'Unable to create encoder'; record --all -> 3840x1200 vp8 and h264; tests/test-record.sh -> 5 ok (all: 2.8 s, 3840x1200)
+
+### 2026-11-09 · new · Recordings and screenshots do not show what the panel shows; lcu panel does
+- Status: active
+- Desktop: kde
+- Seen on: KWin 6.8.2, Plasma 6.8.2, libei 1.6.0, spectacle 6.8.2
+- What: KWin renders capture frames separately from the output, which is repainted only where apps report damage. An app that under-reports damage looks perfect in capture record and in screenshots but shows stale, back-and-forth frames on the real monitor. Likely on other damage-tracking compositors too.
+- Do: To check on-screen animation use lcu panel record (kernel scanout via a one-time root-installed helper) and compare consecutive frames for backward steps; do not call motion verified from capture record.
+- Evidence: Wayland client moving a wp_viewport crop and damaging 1 px per step: capture record --all showed one-column steps every frame; lcu panel record --all showed 46 and 71 backward steps in 6 s (0 with full damage); the user saw the same on the screens.
