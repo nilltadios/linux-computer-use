@@ -32,8 +32,9 @@ tests). GNOME: CentOS Stream 10, GNOME Shell 49.5, Mutter 49.4, libei 1.5.0
 (2026-11-02, all tests under `lcu`). COSMIC (CachyOS, cosmic-comp 1.10.0) was checked
 on 2026-10-29 with the earlier per-desktop skill whose code this one carries; under
 the merged `lcu` it passed `test-input.sh` (2026-11-02), and `window`, `capture shot
---own` and `input --window ... drag` worked on cosmic-comp 1.11.0 (2026-11-08); the
-other tests have not run there yet (see Verifying).
+--own` and `input --window ... drag` worked on cosmic-comp 1.11.0 (2026-11-08), and
+`test-record.sh` passed there, `--all` included (2026-11-11); the other tests have
+not run there yet (see Verifying).
 
 Detection order: `lcu --desktop kde|gnome|cosmic` or `LCU_DESKTOP`, then
 `XDG_CURRENT_DESKTOP` confirmed by the compositor's D-Bus name, then the D-Bus names
@@ -563,7 +564,7 @@ $L capture record out.webm --seconds 300 --window class:codium &  # long take in
 kill -INT <pid printed on its first line>                          # stop early, file stays valid once the
                                                                    # second JSON line ("file") is printed
 $L capture record out.webm --pointer ...                          # cursor drawn into the video
-$L capture record out.mp4 --seconds 10 --all                      # KDE, GNOME: every monitor, one video in the desktop layout
+$L capture record out.mp4 --seconds 10 --all                      # every monitor, one video in the desktop layout
 $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps stills joined: small evidence files
 ```
 
@@ -599,6 +600,14 @@ $L capture frames out.webm --seconds 10 --screen DP-1             # ~1-2 fps sti
   per-monitor branches), scaled like KDE's to at most 3840x2160; black fills the gaps
   between monitors of different sizes. The JSON lists the monitors and
   `pixels_per_logical` (2026-11-09).
+- **COSMIC `--all`** opens one capture session per monitor on the same Wayland
+  connection, writes every monitor's frame on the same tick (so they stay in step),
+  and one ffmpeg reads each monitor from its own pipe and places it like the desktop,
+  scaled like KDE's to at most 3840x2160 (2026-11-11, cosmic-comp 1.11.0: two
+  monitors at 30 fps, 3838x1136). An `--area` across monitors is still refused.
+- **COSMIC: Ctrl+C or `timeout -s INT`** now stops a recording cleanly. ffmpeg runs in
+  its own session, so only lcu gets the signal and finishes the file; before
+  2026-11-11 ffmpeg got it too and lcu reported "ffmpeg failed" for a good file.
 - **GNOME** and **COSMIC** need no grant. `--window` records the window's own
   pixels: it follows the window and is not hidden by windows on top; the frame is
   a fixed size (GNOME: window top-left, rest black, possibly 2x on fractional scaling).
@@ -674,7 +683,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-window.sh [MONITOR]` | every window action the desktop supports on a probe, plus `launch` | all `ok` (13 on KDE) | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
 | `tests/test-move-to-state.sh [OUTDIR]` | fullscreen and maximized geometry after moving between two monitors | 4 `PASS`, exit 0; exit 77 with one monitor | KDE 2026-11-04, KWin 6.8.2 (Fedora 45) |
 | `tests/test-a11y.sh` | three GTK4 dialogs answered by a11y press, a11y click, OCR click; their exit codes prove the button | 3 `ok` | KDE 2026-11-04 (Fedora 45), GNOME 2026-11-02 |
-| `tests/test-record.sh` | each monitor, an area, `--all` (KDE, GNOME) and a probe window; duration and size | all `ok` (KDE needs the grant; 5 with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-09 (EL10) |
+| `tests/test-record.sh` | each monitor, an area, `--all` and a probe window; duration and size | all `ok` (KDE needs the grant; 5 with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-09 (EL10), COSMIC 2026-11-11 (CachyOS, cosmic-comp 1.11.0) |
 | `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-panel.sh` | `panel record --all` from the real scanout: frame count, no late ticks | 3 `ok` (exit 77 = not set up) | KDE 2026-11-09 (Fedora 45, AMD) |

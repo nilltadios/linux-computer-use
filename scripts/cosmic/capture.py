@@ -9,10 +9,12 @@
   lcu capture shot OUT.png --window MATCH --own    # the window's own pixels, even if covered
   lcu capture shot OUT.png --pointer ...           # include the cursor
 
-  lcu capture record OUT.webm [--seconds 10] [--fps 30] [--screen DP-1 | --area X Y W H | --window MATCH]
+  lcu capture record OUT.webm [--seconds 10] [--fps 30] [--screen DP-1 | --area X Y W H | --window MATCH | --all]
       Real-time video: frames from ext-image-copy-capture piped into ffmpeg. --window
-      records the window's own pixels (follows it, not hidden by windows on top). Default:
-      the monitor of the active window. Stops after --seconds or on SIGINT/SIGTERM.
+      records the window's own pixels (follows it, not hidden by windows on top). --all
+      records every monitor on one clock into one video placed like the desktop, at one
+      scale (no higher than the sharpest monitor, at most 3840x2160). Default: the monitor
+      of the active window. Stops after --seconds or on SIGINT/SIGTERM.
   lcu capture frames OUT.mp4 --seconds 10 ...     # the same at 2 fps (evidence, small files)
   lcu capture record-setup                        # nothing to grant on COSMIC; checks recording
 
@@ -204,10 +206,38 @@ def encoder(out):
 def cmd_record(args, fps=None):
     fps = fps or args.fps
     desk = Desktop()
+    pix_of = {"RGBA": "rgba", "RGBX": "rgb0", "BGRA": "bgra", "BGRX": "bgr0"}
     target = {}
-    if args.window:
+    if getattr(args, "all", False):
+        # Every monitor: one capture session each on the same connection, the same tick for
+        # all of them (so the monitors stay in step), and one ffmpeg that reads each monitor
+        # from its own pipe and places it like the desktop.
+        outs = sorted(desk.outputs, key=lambda o: (o.x, o.y))
+        sessions = [CaptureSession(desk, output=o, pointer=args.pointer) for o in outs]
+        bx, by, bw, bh = desk.bounds()
+        native = max(s.size[0] / o.width for s, o in zip(sessions, outs))
+        # one scale for the canvas: no upscaling past the sharpest monitor, and at most
+        # 3840x2160 (same rule as KDE's and GNOME's --all)
+        f = min(native, 3840 / bw, 2160 / bh)
+        ev = lambda v: max(2, int(round(v * f)) // 2 * 2)  # sizes: even, never 0
+        at = lambda v: int(round(v * f)) // 2 * 2  # positions: even, 0 stays 0
+        chains, layout, canvas = [], [], [0, 0]
+        for k, o in enumerate(outs):
+            chains.append(f"[{k}:v]scale={ev(o.width)}:{ev(o.height)},setsar=1[v{k}]")
+            layout.append(f"{at(o.x - bx)}_{at(o.y - by)}")
+            canvas = [max(canvas[0], at(o.x - bx) + ev(o.width)), max(canvas[1], at(o.y - by) + ev(o.height))]
+        if len(outs) > 1:
+            graph = ";".join(chains) + ";" + "".join(f"[v{k}]" for k in range(len(outs))) + \
+                f"xstack=inputs={len(outs)}:layout={'|'.join(layout)}:fill=black[out]"
+        else:
+            graph = chains[0].replace("[v0]", "[out]")
+        vf = None
+        target = {"monitors": [{"name": o.name, "position": [o.x, o.y], "size": [o.width, o.height],
+                                "scale": o.scale} for o in outs],
+                  "pixels_per_logical": round(f, 4), "logical_region": [bx, by, bw, bh]}
+    elif args.window:
         w = desk.find_one(args.window)
-        sess = CaptureSession(desk, window=w, pointer=args.pointer)
+        sessions = [CaptureSession(desk, window=w, pointer=args.pointer)]
         target, crop = {"window": w["id"], "title": w["title"]}, None
     else:
         if args.screen:
@@ -215,82 +245,105 @@ def cmd_record(args, fps=None):
         elif args.area:
             o = desk.output_containing(tuple(args.area))
             if not o:
-                sys.exit("--area must lie inside one monitor for recording")
+                sys.exit("--area must lie inside one monitor for recording (or use --all)")
         else:
             act = desk.active()
             o = desk.output(act[0]["output"]) if act and act[0]["output"] else desk.outputs[0]
-        sess = CaptureSession(desk, output=o, pointer=args.pointer)
+        sessions = [CaptureSession(desk, output=o, pointer=args.pointer)]
         target = {"screen": o.name}
         crop = None
         if args.area:
-            f = sess.size[0] / o.width
+            f = sessions[0].size[0] / o.width
             x, y, w_, h_ = args.area
             crop = [round(w_ * f) // 2 * 2, round(h_ * f) // 2 * 2, round((x - o.x) * f), round((y - o.y) * f)]
             target = {"area": args.area, "screen": o.name}
-    w, h = sess.size
-    order = SHM_ORDER[sess.fmt]
-    pix = {"RGBA": "rgba", "RGBX": "rgb0", "BGRA": "bgra", "BGRX": "bgr0"}[order]
-    vf = f"crop={crop[0]}:{crop[1]}:{crop[2]}:{crop[3]}," if crop else ""
-    vf += "scale=trunc(iw/2)*2:trunc(ih/2)*2"
-    ff = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-y", "-f", "rawvideo", "-pix_fmt", pix, "-s", f"{w}x{h}",
-                           "-framerate", str(fps), "-i", "-", "-vf", vf, *encoder(args.out), "-pix_fmt", "yuv420p",
-                           args.out], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    if not getattr(args, "all", False):
+        vf = f"crop={crop[0]}:{crop[1]}:{crop[2]}:{crop[3]}," if crop else ""
+        vf += "scale=trunc(iw/2)*2:trunc(ih/2)*2"
+    # each session's frames go to ffmpeg through a pipe of its own (pipe:N reads fd N)
+    pipes = [os.pipe() for _ in sessions]
+    cmd = ["ffmpeg", "-loglevel", "error", "-y"]
+    for s, (r, _w) in zip(sessions, pipes):
+        cmd += ["-f", "rawvideo", "-pix_fmt", pix_of[SHM_ORDER[s.fmt]], "-s", f"{s.size[0]}x{s.size[1]}",
+                "-framerate", str(fps), "-i", f"pipe:{r}"]
+    cmd += ["-filter_complex", graph, "-map", "[out]"] if vf is None else ["-vf", vf]
+    ff = subprocess.Popen(cmd + [*encoder(args.out), "-pix_fmt", "yuv420p", args.out],
+                          pass_fds=[r for r, _w in pipes], stdin=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                          start_new_session=True)  # Ctrl+C stops us, and we finish ffmpeg cleanly
+    for r, _w in pipes:
+        os.close(r)
+    sinks = [os.fdopen(w_, "wb") for _r, w_ in pipes]
     stop = []
     signal.signal(signal.SIGINT, lambda *_: stop.append(1))
     signal.signal(signal.SIGTERM, lambda *_: stop.append(1))
     print(json.dumps({"recording": str(Path(args.out).resolve()), "pid": os.getpid()}), flush=True)
-    # constant frame rate: at each tick write the newest completed frame and ask for the next
-    # one (repeating the last frame when none completed, e.g. nothing on screen changed)
-    period, t0, n, last, frames_new = 1 / fps, time.monotonic(), 0, None, 0
-    frame_obj, state = None, {}
+    # constant frame rate: at each tick write every session's newest completed frame and ask
+    # for the next one (repeating the last frame when none completed, e.g. nothing changed)
+    period, t0, n = 1 / fps, time.monotonic(), 0
+    last = [None] * len(sessions)
+    fresh = [0] * len(sessions)
+    frames, states = [None] * len(sessions), [{} for _ in sessions]
 
-    def request():
-        nonlocal frame_obj
-        state.clear()
-        frame_obj = sess.session.create_frame()
-        frame_obj.on("ready", lambda: state.__setitem__("ok", 1))
-        frame_obj.on("failed", lambda r: state.__setitem__("fail", r))
-        frame_obj.attach_buffer(sess.buffer)
-        frame_obj.damage_buffer(0, 0, w, h)
-        frame_obj.capture()
-    request()
+    def request(i):
+        s, st = sessions[i], states[i]
+        st.clear()
+        fr = frames[i] = s.session.create_frame()
+        fr.on("ready", lambda: st.__setitem__("ok", 1))
+        fr.on("failed", lambda r: st.__setitem__("fail", r))
+        fr.attach_buffer(s.buffer)
+        fr.damage_buffer(0, 0, *s.size)
+        fr.capture()
+    for i in range(len(sessions)):
+        request(i)
+    c = sessions[0].c
+    gone = False
     try:
-        while not stop and time.monotonic() - t0 < args.seconds:
+        while not stop and not gone and time.monotonic() - t0 < args.seconds:
             due = t0 + n * period
             while time.monotonic() < due:
-                sess.c.dispatch(max(0, min(due - time.monotonic(), 0.01)))
-            if state.get("fail") is not None:
-                if state["fail"] == 2 or args.window:
-                    break  # source gone (window closed)
-                frame_obj.destroy()
-                request()
-            elif state.get("ok"):
-                last = sess.map[:]
-                frames_new += 1
-                frame_obj.destroy()
-                request()
-            if last is not None:
+                c.dispatch(max(0, min(due - time.monotonic(), 0.01)))
+            for i, (s, st) in enumerate(zip(sessions, states)):
+                if st.get("fail") is not None:
+                    if st["fail"] == 2 or args.window:
+                        gone = True  # source gone (window closed, monitor unplugged)
+                        break
+                    frames[i].destroy()
+                    request(i)
+                elif st.get("ok"):
+                    last[i] = s.map[:]
+                    fresh[i] += 1
+                    frames[i].destroy()
+                    request(i)
+            if gone:
+                break
+            if all(b is not None for b in last):
                 # if we fell behind (slow encoder), repeat the frame so video time stays wall time
                 for _ in range(max(1, int((time.monotonic() - t0) / period) + 1 - n)):
-                    ff.stdin.write(last)
+                    for sink, b in zip(sinks, last):
+                        sink.write(b)
                     n += 1
             elif time.monotonic() - t0 > 5:
                 sys.exit("no frame within 5 s (is the screen locked?)")
             else:
-                sess.c.dispatch(0.01)
+                c.dispatch(0.01)
     except BrokenPipeError:
         pass
     finally:
-        try:
-            ff.stdin.close()
-        except BrokenPipeError:
-            pass
+        for sink in sinks:
+            try:
+                sink.close()
+            except BrokenPipeError:
+                pass
         ff.wait(timeout=60)
-        sess.close()
+        for s in sessions:
+            s.close()
     if ff.returncode or not Path(args.out).exists():
         sys.exit(f"ffmpeg failed: {ff.stderr.read().decode()[-800:]}")
-    print(json.dumps({"file": str(Path(args.out).resolve()), **target, "size": [w, h], "fps": fps,
-                      "frames": n, "distinct_frames": frames_new, "seconds": round(n / fps, 2)}))
+    all_ = getattr(args, "all", False)
+    size = canvas if all_ else list(sessions[0].size)
+    distinct = fresh if all_ else fresh[0]
+    print(json.dumps({"file": str(Path(args.out).resolve()), **target, "size": size, "fps": fps,
+                      "frames": n, "distinct_frames": distinct, "seconds": round(n / fps, 2)}))
 
 
 def cmd_record_setup(args):
@@ -313,6 +366,8 @@ def main():
         g.add_argument("--screen")
         g.add_argument("--area", type=float, nargs=4, metavar=("X", "Y", "W", "H"))
         g.add_argument("--window", metavar="MATCH", help="see `lcu window --help` for MATCH syntax")
+        if name in ("record", "frames"):
+            g.add_argument("--all", action="store_true", help="every monitor in one video, placed like the desktop")
         if name == "shot":
             p.add_argument("--no-raise", action="store_true", help="crop where the window is without raising it")
             p.add_argument("--own", action="store_true", help="the window's own surface (works when covered, 1x)")

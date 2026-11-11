@@ -448,3 +448,11 @@ the old per-desktop scripts (`kde-input.py`, `gnome-a11y.py`...), which are now
 - What: KWin renders capture frames separately from the output, which is repainted only where apps report damage. An app that under-reports damage looks perfect in capture record and in screenshots but shows stale, back-and-forth frames on the real monitor. Likely on other damage-tracking compositors too.
 - Do: To check on-screen animation use lcu panel record (kernel scanout via a one-time root-installed helper) and compare consecutive frames for backward steps; do not call motion verified from capture record.
 - Evidence: Wayland client moving a wp_viewport crop and damaging 1 px per step: capture record --all showed one-column steps every frame; lcu panel record --all showed 46 and 71 backward steps in 6 s (0 with full damage); the user saw the same on the screens.
+
+### 2026-11-11 · new · COSMIC record has no --all; two parallel --screen records work
+- Status: promoted (COSMIC `capture record --all` added the same day on this basis; see SKILL.md Recording)
+- Desktop: cosmic
+- Seen on: cosmic-comp 1.11.0, xdg-desktop-portal-cosmic 1.11.0, libei 1.6.0, gtk4 4.24.1
+- What: On COSMIC, capture record rejects --all (unrecognized argument) and refuses an --area that spans two monitors. Unlike KDE there is no screencast grant to race, so two capture record --screen runs started together both succeed. Likely the basis for a COSMIC --all.
+- Do: To film every monitor on COSMIC, start one capture record --screen NAME per monitor in parallel and wait on both PIDs; compose afterwards with ffmpeg hstack if one file is needed.
+- Evidence: capture record --all x.webm -> 'unrecognized arguments: --all'; --area 0 0 3243 960 -> '--area must lie inside one monitor for recording'; eDP-1 and DP-1 --screen records in parallel for 4 s -> both exit 0, 112 and 108 frames, same clock in both
