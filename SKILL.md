@@ -634,9 +634,13 @@ $L panel record out.mkv --all --seconds 6         # every monitor side by side, 
 $L panel record out.mkv --screen DP-1 --scale 1 --fps 30   # pixel-exact frames of one monitor
 ```
 
-- One-time setup, with the person: `$L panel setup` builds a small helper and installs it as
-  `/usr/local/libexec/lcu-panel-grab` with one file capability (CAP_SYS_ADMIN, which the kernel
-  requires for the scanout buffer); it asks for their sudo password. Never run it for them.
+- One-time setup, with the person: `$L panel setup` builds a small helper (Rust, std only,
+  `scripts/panel/lcu-panel-grab.rs`) and installs it as `/usr/local/libexec/lcu-panel-grab`
+  (root, their group, 0750) with one file capability (CAP_SYS_ADMIN, which the kernel requires
+  for the scanout buffer); it asks for their sudo password. Never run it for them, and never
+  edit `lcu-panel-grab.rs`, `build.sh` or `setup.sh` and then ask them to run setup: root
+  builds only with the system compiler (`sudo dnf install rust`; rustup is refused) and from
+  a source matching GitHub, and a setup that refuses is doing its job.
   Tell them first that afterwards any program of their user can read the screen through the
   helper without a share dialog. The grant survives reboots and updates; `panel setup --remove`
   undoes it. The helper only hands out the buffer; `scripts/panel.py` decodes it on the GPU

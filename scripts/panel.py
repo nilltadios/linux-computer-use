@@ -15,7 +15,7 @@ alternating frames on the real screen while its recording looks perfect (seen on
 How: the kernel gives the buffer a monitor is scanning out only to a process with
 CAP_SYS_ADMIN. `lcu panel setup` installs one small helper, /usr/local/libexec/lcu-panel-grab,
 owned by root with that single file capability. The helper only hands the buffer (a dma-buf)
-to its caller; it runs no other program. This script imports the buffer into the GPU (EGL,
+to its caller; it runs no other program (source: panel/lcu-panel-grab.rs). This script imports the buffer into the GPU (EGL,
 no window), which undoes the driver's tiling and compression, reads it back as 8-bit RGB and
 pipes it to ffmpeg. The grant survives reboots and updates; this script can change without
 a new setup. After setup any program of this user can read the screen through the helper
@@ -376,6 +376,8 @@ def main():
     sub.add_parser("status")
     p = sub.add_parser("setup")
     p.add_argument("--remove", dest="rest", action="store_const", const=["--remove"], default=[], help="undo the setup")
+    p.add_argument("--allow-local", dest="rest", action="store_const", const=["--allow-local"],
+                   help="install even though the helper source differs from GitHub (review it first)")
     p = sub.add_parser("record")
     p.add_argument("out")
     g = p.add_mutually_exclusive_group()
