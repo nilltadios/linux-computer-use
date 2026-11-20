@@ -6,7 +6,8 @@ description: Control this user's Linux Wayland desktop (KDE Plasma 6, GNOME or C
 # Computer use on Linux (KDE Plasma 6, GNOME, COSMIC)
 
 Everything works as the desktop user: no root, no uinput, no ydotool, nothing from
-pip. One command, `lcu`, detects the desktop and drives it through that
+pip (the one exception is the optional `lcu panel`, whose helper the person installs
+once with sudo). One command, `lcu`, detects the desktop and drives it through that
 compositor's own interfaces; the commands, options and JSON are the same everywhere.
 It is plain shell commands, so any agent that can run a shell (Codex, Gemini CLI,
 Antigravity...) uses it the same way.
@@ -27,14 +28,11 @@ $L check           # every requirement for this desktop; changes nothing; exit 0
 | `a11y`, `ocr` | AT-SPI, tesseract (shared) | same | same (COSMIC's own apps: OCR only) |
 | one-time setup | `capture record-setup` for video | `setup` (extension, a11y switch) | `setup` (Remote desktop dialog) |
 
-Checked on KDE: Fedora 44, KWin 6.7.5, libei 1.6.0, Spectacle 6.7.5 (2026-10-30, all
-tests). GNOME: CentOS Stream 10, GNOME Shell 49.5, Mutter 49.4, libei 1.5.0
-(2026-11-02, all tests under `lcu`). COSMIC (CachyOS, cosmic-comp 1.10.0) was checked
-on 2026-10-29 with the earlier per-desktop skill whose code this one carries; under
-the merged `lcu` it passed `test-input.sh` (2026-11-02), and `window`, `capture shot
---own` and `input --window ... drag` worked on cosmic-comp 1.11.0 (2026-11-08), and
-`test-record.sh` passed there, `--all` included (2026-11-11); the other tests have
-not run there yet (see Verifying).
+Which test last passed on which desktop, distribution and compositor version is kept in
+one place, [Verifying](#verifying-rerun-after-desktop-or-libei-updates). In short: KDE
+(Fedora) has passed every test; GNOME (CentOS Stream 10) the input, window, a11y and
+recording tests; COSMIC (CachyOS, cosmic-comp 1.11) `test-input.sh`, `test-record.sh`
+and `test-panel.sh`. Tests not listed for a desktop have not run there under `lcu` yet.
 
 Detection order: `lcu --desktop kde|gnome|cosmic` or `LCU_DESKTOP`, then
 `XDG_CURRENT_DESKTOP` confirmed by the compositor's D-Bus name, then the D-Bus names
