@@ -5,7 +5,8 @@
 #   setup.sh --remove        undo: delete the installed helper
 # What root does, and nothing else:
 #   copy lcu-panel-grab.rs + build.sh into a root-only temp folder, check they are the files shown
-#   below, build with the root-owned system compiler (/usr/bin/rustc, `sudo dnf install rust`), then
+#   below, build with the root-owned system compiler (a distro `rust` package, or root's own
+#   rustup toolchain where /usr/bin/rustc is rustup's wrapper; see build.sh), then
 #   install -o root -g <your primary group> -m 0750  lcu-panel-grab  /usr/local/libexec/lcu-panel-grab
 #   setcap cap_sys_admin+ep /usr/local/libexec/lcu-panel-grab
 # Why it is built this way: the result runs with CAP_SYS_ADMIN, so nothing your account can write
@@ -29,7 +30,12 @@ if [[ ${1:-} == --remove ]]; then
   exit 0
 fi
 allow_local=; [[ ${1:-} == --allow-local ]] && allow_local=1
-[[ -x /usr/bin/rustc ]] || { echo "Fedora's Rust compiler is needed: sudo dnf install rust" >&2; exit 1; }
+[[ -x /usr/bin/rustc ]] || { echo "A Rust compiler is needed: Fedora \`sudo dnf install rust\`, Arch \`sudo pacman -S rust\` (or, with rustup, \`sudo rustup toolchain install stable --profile minimal\`), Debian/Ubuntu \`sudo apt install rustc\`" >&2; exit 1; }
+if [[ $(basename "$(readlink -f /usr/bin/rustc)") == rustup ]]; then
+  echo "Compiler:   /usr/bin/rustc is rustup's wrapper: root builds with ROOT's own default toolchain"
+  echo "            (your ~/.rustup is not used). If root has none, build.sh stops; add one with"
+  echo "            \`sudo rustup toolchain install stable --profile minimal\` and rerun."
+fi
 [[ -x /usr/sbin/setcap || -x /usr/bin/setcap ]] || { echo "setcap (libcap) is needed" >&2; exit 1; }
 
 # What will be built: the two files, their commit, and whether they match GitHub.

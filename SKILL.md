@@ -639,7 +639,9 @@ $L panel record out.mkv --screen DP-1 --scale 1 --fps 30   # pixel-exact frames 
   (root, their group, 0750) with one file capability (CAP_SYS_ADMIN, which the kernel requires
   for the scanout buffer); it asks for their sudo password. Never run it for them, and never
   edit `lcu-panel-grab.rs`, `build.sh` or `setup.sh` and then ask them to run setup: root
-  builds only with the system compiler (`sudo dnf install rust`; rustup is refused) and from
+  builds only with a root-owned compiler (a distro `rust` package; where `/usr/bin/rustc` is
+  rustup's wrapper, as on Arch with `rustup`, root's own toolchain from `sudo rustup toolchain
+  install stable --profile minimal`; the user's ~/.rustup is refused) and from
   a source matching GitHub, and a setup that refuses is doing its job.
   Tell them first that afterwards any program of their user can read the screen through the
   helper without a share dialog. The grant survives reboots and updates; `panel setup --remove`
