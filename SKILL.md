@@ -692,7 +692,7 @@ makes COSMIC show the dialog again; `input` waits up to 120 s and says so after 
 | `tests/test-record.sh` | each monitor, an area, `--all` and a probe window; duration and size | all `ok` (KDE needs the grant; 5 with two monitors) | KDE 2026-11-08 (Fedora 45), GNOME 2026-11-09 (EL10), COSMIC 2026-11-11 (CachyOS, cosmic-comp 1.11.0) |
 | `tests/test-input-window.sh [MONITOR]` | `input --window` on two probes: 7 refusals send nothing, accepted input reaches only the target | 14 `ok`, exit 0 | KDE 2026-11-07 (Fedora 45) |
 | `tests/test-settle-live.sh [MONITOR]` | fixed sleep, `--settle` and `--since` against a window that changes late | a timing table; every `since` row correct, exit 0 | KDE 2026-11-07 (Fedora 45) |
-| `tests/test-panel.sh` | `panel record --all` from the real scanout: frame count, no late ticks | 3 `ok` (exit 77 = not set up) | KDE 2026-11-09 (Fedora 45, AMD) |
+| `tests/test-panel.sh` | `panel record --all` from the real scanout: frame count, no late ticks | 3 `ok` (exit 77 = not set up) | KDE 2026-11-09 (Fedora 45, AMD), COSMIC 2026-11-19 (CachyOS, cosmic-comp 1.11.0, amdgpu; helper built by root's rustup toolchain) |
 | `tests/test-settle.py` | settle logic, offline with a fake clock | 15 `ok` | 2026-11-07 |
 | `tests/test-portal-grant.py` | grant lookup order, forget, and the slow-answer notice, offline with no portal | 8 `ok` | 2026-11-05 |
 | `tests/test-learn.sh` | `lcu learn` on a copy of the log | 17 `ok` | 2026-11-05 |
